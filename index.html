@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var currentFetch = window.fetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return currentFetch;
+            },
+            set: function(fn) {
+              currentFetch = fn;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          try {
+            if (typeof Window !== 'undefined' && Window.prototype) {
+              var protoDesc = Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
+              if (protoDesc && protoDesc.configurable) {
+                Object.defineProperty(Window.prototype, 'fetch', {
+                  get: function() {
+                    return this.__customFetch || (protoDesc.get ? protoDesc.get.call(this) : protoDesc.value);
+                  },
+                  set: function(fn) {
+                    this.__customFetch = fn;
+                  },
+                  configurable: true,
+                  enumerable: true
+                });
+              }
+            }
+          } catch (e2) {}
+        }
+      })();
+    </script>
+    <title>Ugly2Yummy — Upcycled Food Brand</title>
+    <meta name="description" content="Tak sempurna di mata, sempurna di rasa. Menyelamatkan buah dan sayur berkualitas yang tidak sempurna secara visual menjadi produk lezat." />
+    <meta property="og:title" content="Ugly2Yummy — Upcycled Food Brand" />
+    <meta property="og:description" content="Tak sempurna di mata, sempurna di rasa. Menyelamatkan buah dan sayur berkualitas yang tidak sempurna secara visual menjadi produk lezat." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-[#FBFBFD] text-[#1D1D1F] antialiased selection:bg-[#2E7D4F]/20 selection:text-[#2E7D4F]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

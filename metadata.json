@@ -1,0 +1,6 @@
+{
+  "name": "Ugly2Yummy — Upcycled Food Brand",
+  "description": "Prototype website brand upcycled food Ugly2Yummy. Tak sempurna di mata, sempurna di rasa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
