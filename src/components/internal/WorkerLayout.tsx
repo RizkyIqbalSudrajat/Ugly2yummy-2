@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useStaffAuth } from '../../context/StaffAuthContext';
+import { useWorkerData } from '../../context/WorkerDataContext';
 import {
   LayoutDashboard,
   PackageCheck,
@@ -36,7 +37,8 @@ const NAV_ITEMS: WorkerNavItem[] = [
 ];
 
 export const WorkerLayout: React.FC<WorkerLayoutProps> = ({ children }) => {
-  const { staff, logoutStaff, pendingTasksCount } = useStaffAuth();
+  const { staff, logoutStaff } = useStaffAuth();
+  const { pendingTasksCount } = useWorkerData();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();

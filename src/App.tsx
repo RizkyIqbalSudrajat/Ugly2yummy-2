@@ -8,6 +8,7 @@ import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { SupplierAuthProvider } from './context/SupplierAuthContext';
 import { StaffAuthProvider } from './context/StaffAuthContext';
+import { WorkerDataProvider } from './context/WorkerDataContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { ScrollToTop } from './components/layout/ScrollToTop';
@@ -105,7 +106,9 @@ function AppRoutes() {
           path="/internal/pekerja"
           element={
             <StaffProtectedRoute allowedRole="pekerja">
-              <WorkerLayout />
+              <WorkerDataProvider>
+                <WorkerLayout />
+              </WorkerDataProvider>
             </StaffProtectedRoute>
           }
         >

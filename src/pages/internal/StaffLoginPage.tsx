@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useStaffAuth, DEMO_PEKERJA, DEMO_ADMIN } from '../../context/StaffAuthContext';
 import { StaffRole } from '../../types/staff';
 import { Container } from '../../components/ui/Container';
@@ -21,11 +21,32 @@ import {
 export const StaffLoginPage: React.FC = () => {
   const { loginStaff, isStaffLoggedIn, role } = useStaffAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get('role');
 
-  // Role selector: default Pekerja
-  const [selectedRole, setSelectedRole] = useState<StaffRole>('pekerja');
-  const [email, setEmail] = useState<string>('pekerja@ugly2yummy.id');
-  const [password, setPassword] = useState<string>('pekerja123');
+  const initialRole: StaffRole = roleParam === 'admin' ? 'admin' : 'pekerja';
+
+  // Role selector: default sesuai parameter URL atau pekerja
+  const [selectedRole, setSelectedRole] = useState<StaffRole>(initialRole);
+  const [email, setEmail] = useState<string>(
+    initialRole === 'admin' ? 'admin@ugly2yummy.id' : 'pekerja@ugly2yummy.id'
+  );
+  const [password, setPassword] = useState<string>(
+    initialRole === 'admin' ? 'admin123' : 'pekerja123'
+  );
+
+  // Sinkronisasi jika parameter role di URL berubah
+  useEffect(() => {
+    if (roleParam === 'admin') {
+      setSelectedRole('admin');
+      setEmail('admin@ugly2yummy.id');
+      setPassword('admin123');
+    } else if (roleParam === 'pekerja') {
+      setSelectedRole('pekerja');
+      setEmail('pekerja@ugly2yummy.id');
+      setPassword('pekerja123');
+    }
+  }, [roleParam]);
 
   // If already logged in, redirect to respective dashboard
   useEffect(() => {
@@ -71,7 +92,7 @@ export const StaffLoginPage: React.FC = () => {
             className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-[#6E6E73] hover:text-[#1D1D1F] transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span>Kembali ke Beranda Utama</span>
+            <span>Kembali ke toko</span>
           </Link>
         </div>
 
@@ -261,7 +282,7 @@ export const StaffLoginPage: React.FC = () => {
               </form>
 
               {/* Teks Kecil di Bawah Form */}
-              <div className="mt-6 pt-5 border-t border-[#E8E8ED] text-center space-y-1.5">
+              <div className="mt-6 pt-5 border-t border-[#E8E8ED] text-center space-y-2">
                 <p className="text-xs text-[#6E6E73] flex items-center justify-center gap-1.5">
                   <ShieldAlert className="w-3.5 h-3.5 text-[#2E7D4F]" />
                   <span>Ini prototype — login hanya simulasi.</span>
@@ -269,6 +290,15 @@ export const StaffLoginPage: React.FC = () => {
                 <p className="text-[11px] text-[#6E6E73]/80">
                   Halaman khusus tim internal Ugly2Yummy.
                 </p>
+                <div className="pt-1">
+                  <Link
+                    to="/"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#2E7D4F] hover:text-[#256640] hover:underline font-medium"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Kembali ke toko</span>
+                  </Link>
+                </div>
               </div>
 
               {/* Mobile Back Link in card */}
@@ -277,7 +307,7 @@ export const StaffLoginPage: React.FC = () => {
                   to="/"
                   className="text-xs text-[#6E6E73] hover:text-[#1D1D1F] underline underline-offset-4"
                 >
-                  Kembali ke Beranda Utama
+                  Kembali ke toko
                 </Link>
               </div>
             </div>

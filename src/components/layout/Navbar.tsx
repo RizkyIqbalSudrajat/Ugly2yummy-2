@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { ShoppingBag, Menu, X, ChevronDown, Sparkles, User, Package, LogOut } from 'lucide-react';
+import {
+  ShoppingBag,
+  Menu,
+  X,
+  ChevronDown,
+  Sparkles,
+  User,
+  Package,
+  LogOut,
+  Building2,
+  ChefHat,
+  ShieldCheck,
+} from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export const Navbar: React.FC = () => {
   const { isLoggedIn, user, cartCount, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [portalDropdownOpen, setPortalDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const portalDropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -40,13 +54,18 @@ export const Navbar: React.FC = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
     setProfileDropdownOpen(false);
+    setPortalDropdownOpen(false);
   }, [location.pathname]);
 
-  // Click outside to close profile dropdown
+  // Click outside to close profile & portal dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setProfileDropdownOpen(false);
+      }
+      if (portalDropdownRef.current && !portalDropdownRef.current.contains(target)) {
+        setPortalDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -142,17 +161,90 @@ export const Navbar: React.FC = () => {
 
         {/* Zone 3: Actions (Desktop) */}
         <div className="hidden md:flex items-center gap-2 lg:gap-3">
-          {/* Link Portal Supplier (sebelum ikon keranjang & tombol masuk) */}
-          <Link
-            to="/supplier/masuk"
-            className={`text-xs sm:text-sm font-medium transition-colors px-3 py-1.5 rounded-full ${
-              isTransparentHero
-                ? 'text-white/90 hover:text-white hover:bg-white/10'
-                : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
-            }`}
-          >
-            Portal Supplier
-          </Link>
+          {/* Dropdown Portal Gabungan (Tablet / Layar Sedang agar tidak penuh) */}
+          <div className="hidden md:flex xl:hidden relative" ref={portalDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setPortalDropdownOpen(!portalDropdownOpen)}
+              className={`text-xs sm:text-sm font-medium transition-colors px-3 py-1.5 rounded-full flex items-center gap-1 cursor-pointer ${
+                isTransparentHero
+                  ? 'text-white/90 hover:text-white hover:bg-white/10'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
+              }`}
+              aria-expanded={portalDropdownOpen}
+              aria-label="Menu Portal"
+            >
+              <span>Portal</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${
+                  portalDropdownOpen ? 'rotate-180' : ''
+                } ${isTransparentHero ? 'text-white/80' : 'text-[#6E6E73]'}`}
+              />
+            </button>
+
+            {portalDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-[#E8E8ED] py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <Link
+                  to="/supplier/masuk"
+                  onClick={() => setPortalDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-[#2E7D4F]" />
+                  <span>Portal Supplier</span>
+                </Link>
+                <Link
+                  to="/internal/masuk?role=pekerja"
+                  onClick={() => setPortalDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors"
+                >
+                  <ChefHat className="w-3.5 h-3.5 text-[#2E7D4F]" />
+                  <span>Portal Pekerja</span>
+                </Link>
+                <Link
+                  to="/internal/masuk?role=admin"
+                  onClick={() => setPortalDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#2E7D4F]" />
+                  <span>Portal Admin</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Link Portal Terpisah (Desktop Lebar: Portal Supplier, Portal Pekerja, Portal Admin) */}
+          <div className="hidden xl:flex items-center gap-1">
+            <Link
+              to="/supplier/masuk"
+              className={`text-xs sm:text-sm font-medium transition-colors px-3 py-1.5 rounded-full ${
+                isTransparentHero
+                  ? 'text-white/90 hover:text-white hover:bg-white/10'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
+              }`}
+            >
+              Portal Supplier
+            </Link>
+            <Link
+              to="/internal/masuk?role=pekerja"
+              className={`text-xs sm:text-sm font-medium transition-colors px-3 py-1.5 rounded-full ${
+                isTransparentHero
+                  ? 'text-white/90 hover:text-white hover:bg-white/10'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
+              }`}
+            >
+              Portal Pekerja
+            </Link>
+            <Link
+              to="/internal/masuk?role=admin"
+              className={`text-xs sm:text-sm font-medium transition-colors px-3 py-1.5 rounded-full ${
+                isTransparentHero
+                  ? 'text-white/90 hover:text-white hover:bg-white/10'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
+              }`}
+            >
+              Portal Admin
+            </Link>
+          </div>
 
           {/* Shopping Bag Button with Badge (selalu tampil) */}
           <Link
@@ -363,15 +455,44 @@ export const Navbar: React.FC = () => {
               </>
             )}
 
-            {/* Link Portal Supplier di Menu HP */}
-            <div className="pt-2 mt-1 border-t border-[#E8E8ED]/60">
+            {/* Link Portal di Menu HP: Supplier, Pekerja, Admin */}
+            <div className="pt-2 mt-1 border-t border-[#E8E8ED]/60 space-y-1">
               <Link
                 to="/supplier/masuk"
-                className="px-3 py-2.5 rounded-xl text-sm font-medium text-[#2E7D4F] hover:bg-[#EBF4EE] flex items-center justify-between transition-colors"
+                className="px-3 py-2.5 rounded-xl text-sm font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] flex items-center justify-between transition-colors"
               >
-                <span>Portal Supplier</span>
+                <div className="flex items-center gap-2.5">
+                  <Building2 className="w-4 h-4 text-[#2E7D4F]" />
+                  <span>Portal Supplier</span>
+                </div>
                 <span className="text-[11px] font-semibold text-[#2E7D4F] bg-[#EBF4EE] px-2 py-0.5 rounded-full border border-[#2E7D4F]/20">
                   Mitra Tani
+                </span>
+              </Link>
+
+              <Link
+                to="/internal/masuk?role=pekerja"
+                className="px-3 py-2.5 rounded-xl text-sm font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] flex items-center justify-between transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <ChefHat className="w-4 h-4 text-[#2E7D4F]" />
+                  <span>Portal Pekerja</span>
+                </div>
+                <span className="text-[11px] font-semibold text-[#2E7D4F] bg-[#EBF4EE] px-2 py-0.5 rounded-full border border-[#2E7D4F]/20">
+                  Dapur Produksi
+                </span>
+              </Link>
+
+              <Link
+                to="/internal/masuk?role=admin"
+                className="px-3 py-2.5 rounded-xl text-sm font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] flex items-center justify-between transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-[#2E7D4F]" />
+                  <span>Portal Admin</span>
+                </div>
+                <span className="text-[11px] font-semibold text-[#2E7D4F] bg-[#EBF4EE] px-2 py-0.5 rounded-full border border-[#2E7D4F]/20">
+                  Manajemen
                 </span>
               </Link>
             </div>
