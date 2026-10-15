@@ -9,6 +9,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SupplierAuthProvider } from './context/SupplierAuthContext';
 import { StaffAuthProvider } from './context/StaffAuthContext';
 import { WorkerDataProvider } from './context/WorkerDataContext';
+import { AdminDataProvider } from './context/AdminDataContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { ScrollToTop } from './components/layout/ScrollToTop';
@@ -46,15 +47,36 @@ import { SupplierOfferDetailPage } from './pages/supplier/SupplierOfferDetailPag
 // Portal Internal Components & Pages
 import { StaffProtectedRoute } from './components/internal/StaffProtectedRoute';
 import { WorkerLayout } from './components/internal/WorkerLayout';
+import { AdminLayout } from './components/internal/AdminLayout';
 import { StaffLoginPage } from './pages/internal/StaffLoginPage';
-import { AdminPlaceholderPage } from './pages/internal/AdminPlaceholderPage';
 import { WorkerOverviewPage } from './pages/internal/worker/WorkerOverviewPage';
 import { WorkerReceivingPage } from './pages/internal/worker/WorkerReceivingPage';
 import { WorkerQCPage } from './pages/internal/worker/WorkerQCPage';
 import { WorkerCalculationPage } from './pages/internal/worker/WorkerCalculationPage';
 import { WorkerProductionPage } from './pages/internal/worker/WorkerProductionPage';
+import { WorkerBatchDetailPage } from './pages/internal/worker/WorkerBatchDetailPage';
 import { WorkerInventoryPage } from './pages/internal/worker/WorkerInventoryPage';
 import { WorkerTasksPage } from './pages/internal/worker/WorkerTasksPage';
+
+// Admin Portal Pages
+import { AdminDashboardPage } from './pages/internal/admin/AdminDashboardPage';
+import { AdminNotificationsPage } from './pages/internal/admin/AdminNotificationsPage';
+import { AdminSupplierOffersPage } from './pages/internal/admin/AdminSupplierOffersPage';
+import { AdminSupplierOfferDetailPage } from './pages/internal/admin/AdminSupplierOfferDetailPage';
+import { AdminReceivingSchedulePage } from './pages/internal/admin/AdminReceivingSchedulePage';
+import { AdminWorkerTasksPage } from './pages/internal/admin/AdminWorkerTasksPage';
+import { AdminIngredientsManagementPage } from './pages/internal/admin/AdminIngredientsManagementPage';
+import { AdminProductionCalculationPage } from './pages/internal/admin/AdminProductionCalculationPage';
+import { AdminProductsPage } from './pages/internal/admin/AdminProductsPage';
+import { AdminProductCreatePage } from './pages/internal/admin/AdminProductCreatePage';
+import { AdminProductEditPage } from './pages/internal/admin/AdminProductEditPage';
+import { AdminOrdersPage } from './pages/internal/admin/AdminOrdersPage';
+import { AdminOrderDetailPage } from './pages/internal/admin/AdminOrderDetailPage';
+import { AdminShippingPage } from './pages/internal/admin/AdminShippingPage';
+import { AdminReviewsPage } from './pages/internal/admin/AdminReviewsPage';
+import { AdminReportsPage } from './pages/internal/admin/AdminReportsPage';
+import { AdminUsersPage } from './pages/internal/admin/AdminUsersPage';
+import { AdminSettingsPage } from './pages/internal/admin/AdminSettingsPage';
 
 function AppRoutes() {
   const location = useLocation();
@@ -97,47 +119,72 @@ function AppRoutes() {
   // Rute Khusus Portal Internal: Bersih TANPA Navbar, Footer, dan Tombol WhatsApp Pembeli
   if (isInternalArea) {
     return (
-      <Routes>
-        {/* Halaman Masuk Internal (Publik Portal Internal) */}
-        <Route path="/internal/masuk" element={<StaffLoginPage />} />
+      <WorkerDataProvider>
+        <AdminDataProvider>
+          <Routes>
+            {/* Halaman Masuk Internal (Publik Portal Internal) */}
+            <Route path="/internal/masuk" element={<StaffLoginPage />} />
 
-        {/* Protected Worker Portal (Role Pekerja) */}
-        <Route
-          path="/internal/pekerja"
-          element={
-            <StaffProtectedRoute allowedRole="pekerja">
-              <WorkerDataProvider>
-                <WorkerLayout />
-              </WorkerDataProvider>
-            </StaffProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/internal/pekerja/ringkasan" replace />} />
-          <Route path="ringkasan" element={<WorkerOverviewPage />} />
-          <Route path="penerimaan" element={<WorkerReceivingPage />} />
-          <Route path="seleksi" element={<WorkerQCPage />} />
-          <Route path="kalkulasi" element={<WorkerCalculationPage />} />
-          <Route path="produksi" element={<WorkerProductionPage />} />
-          <Route path="stok" element={<WorkerInventoryPage />} />
-          <Route path="tugas" element={<WorkerTasksPage />} />
-          {/* Fallback internal worker */}
-          <Route path="*" element={<Navigate to="/internal/pekerja/ringkasan" replace />} />
-        </Route>
+            {/* Protected Worker Portal (Role Pekerja) */}
+            <Route
+              path="/internal/pekerja"
+              element={
+                <StaffProtectedRoute allowedRole="pekerja">
+                  <WorkerLayout />
+                </StaffProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/internal/pekerja/ringkasan" replace />} />
+              <Route path="ringkasan" element={<WorkerOverviewPage />} />
+              <Route path="penerimaan" element={<WorkerReceivingPage />} />
+              <Route path="seleksi" element={<WorkerQCPage />} />
+              <Route path="kalkulasi" element={<WorkerCalculationPage />} />
+              <Route path="produksi" element={<WorkerProductionPage />} />
+              <Route path="produksi/:id" element={<WorkerBatchDetailPage />} />
+              <Route path="stok" element={<WorkerInventoryPage />} />
+              <Route path="tugas" element={<WorkerTasksPage />} />
+              {/* Fallback internal worker */}
+              <Route path="*" element={<Navigate to="/internal/pekerja/ringkasan" replace />} />
+            </Route>
 
-        {/* Protected Admin Portal (Role Admin) */}
-        <Route
-          path="/internal/admin"
-          element={
-            <StaffProtectedRoute allowedRole="admin">
-              <AdminPlaceholderPage />
-            </StaffProtectedRoute>
-          }
-        />
+            {/* Protected Admin Portal (Role Admin) */}
+            <Route
+              path="/internal/admin"
+              element={
+                <StaffProtectedRoute allowedRole="admin">
+                  <AdminLayout />
+                </StaffProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/internal/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboardPage />} />
+              <Route path="notifikasi" element={<AdminNotificationsPage />} />
+              <Route path="penawaran" element={<AdminSupplierOffersPage />} />
+              <Route path="penawaran/:id" element={<AdminSupplierOfferDetailPage />} />
+              <Route path="jadwal" element={<AdminReceivingSchedulePage />} />
+              <Route path="tugas" element={<AdminWorkerTasksPage />} />
+              <Route path="bahan" element={<AdminIngredientsManagementPage />} />
+              <Route path="kalkulasi" element={<AdminProductionCalculationPage />} />
+              <Route path="produk" element={<AdminProductsPage />} />
+              <Route path="produk/baru" element={<AdminProductCreatePage />} />
+              <Route path="produk/:id/edit" element={<AdminProductEditPage />} />
+              <Route path="pesanan" element={<AdminOrdersPage />} />
+              <Route path="pesanan/:id" element={<AdminOrderDetailPage />} />
+              <Route path="pengiriman" element={<AdminShippingPage />} />
+              <Route path="ulasan" element={<AdminReviewsPage />} />
+              <Route path="laporan" element={<AdminReportsPage />} />
+              <Route path="pengguna" element={<AdminUsersPage />} />
+              <Route path="pengaturan" element={<AdminSettingsPage />} />
+              {/* Fallback internal admin */}
+              <Route path="*" element={<Navigate to="/internal/admin/dashboard" replace />} />
+            </Route>
 
-        {/* Fallback internal default */}
-        <Route path="/internal" element={<Navigate to="/internal/masuk" replace />} />
-        <Route path="/internal/*" element={<Navigate to="/internal/masuk" replace />} />
-      </Routes>
+            {/* Fallback internal default */}
+            <Route path="/internal" element={<Navigate to="/internal/masuk" replace />} />
+            <Route path="/internal/*" element={<Navigate to="/internal/masuk" replace />} />
+          </Routes>
+        </AdminDataProvider>
+      </WorkerDataProvider>
     );
   }
 

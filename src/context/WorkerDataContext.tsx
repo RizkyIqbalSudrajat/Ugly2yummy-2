@@ -9,6 +9,7 @@ import {
   TaskStatus,
   ProductInventory,
   IngredientCategory,
+  StockMovementLog,
 } from '../types/worker';
 import {
   INITIAL_RECEIVINGS,
@@ -16,6 +17,7 @@ import {
   INITIAL_BATCHES,
   INITIAL_TASKS,
   INITIAL_INVENTORY,
+  INITIAL_STOCK_LOGS,
 } from '../data/workerDummy';
 
 export interface MaterialStockSummary {
@@ -45,16 +47,35 @@ export interface WorkerDataContextType {
   // Batch Produksi
   batches: ProductionBatch[];
   addBatch: (newBatch: Omit<ProductionBatch, 'id' | 'riwayatStatus'>) => ProductionBatch;
-  updateBatchStatus: (batchId: string, newStatus: BatchStatus, catatan?: string) => void;
+  updateBatchStatus: (
+    batchId: string,
+    newStatus: BatchStatus,
+    catatan?: string,
+    finalResult?: { hasilBerhasil: number; gagalReject: number }
+  ) => void;
 
   // Tugas
   tasks: WorkerTask[];
+  addTask: (newTask: Omit<WorkerTask, 'id' | 'dibuatPada'>) => WorkerTask;
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
   pendingTasksCount: number;
 
   // Stok & Inventaris
   materialStocks: MaterialStockSummary[];
   inventory: ProductInventory[];
+  stockLogs: StockMovementLog[];
+  adjustMaterialStock: (
+    namaBahan: string,
+    tipe: 'Tambah' | 'Kurang',
+    jumlahKg: number,
+    alasan: string
+  ) => void;
+  adjustProductStock: (
+    namaProduk: string,
+    tipe: 'Tambah' | 'Kurang',
+    jumlah: number,
+    alasan: string
+  ) => void;
 
   // Statistik Ringkasan
   stats: {
@@ -72,7 +93,9 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [recipes] = useState<ConversionRecipe[]>(CONVERSION_RECIPES);
   const [batches, setBatches] = useState<ProductionBatch[]>(INITIAL_BATCHES);
   const [tasks, setTasks] = useState<WorkerTask[]>(INITIAL_TASKS);
-  const [inventory] = useState<ProductInventory[]>(INITIAL_INVENTORY);
+  const [inventory, setInventory] = useState<ProductInventory[]>(INITIAL_INVENTORY);
+  const [stockLogs, setStockLogs] = useState<StockMovementLog[]>(INITIAL_STOCK_LOGS);
+  const [manualMaterialAdjustments, setManualMaterialAdjustments] = useState<Record<string, number>>({});
 
   // Tambah Penerimaan Bahan Baru
   const addReceiving: WorkerDataContextType['addReceiving'] = (input) => {
@@ -93,6 +116,8 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Update Hasil Seleksi (QC)
   const updateReceivingQC = (receivingId: string, qcResult: QCResult) => {
+    const targetReceiving = receivings.find((r) => r.id === receivingId);
+
     setReceivings((prev) =>
       prev.map((rec) => {
         if (rec.id === receivingId) {
@@ -105,6 +130,26 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return rec;
       })
     );
+
+    // Catat log stok masuk dari seleksi
+    if (targetReceiving && qcResult.layak > 0) {
+      const now = new Date();
+      const jam = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+      const newLog: StockMovementLog = {
+        id: `LOG-${Date.now()}`,
+        tanggal: '14 Okt 2026',
+        jam,
+        item: targetReceiving.namaBahan,
+        kategoriItem: 'Bahan Baku',
+        tipe: 'Masuk',
+        jumlah: qcResult.layak,
+        satuan: 'kg',
+        sumber: 'Seleksi',
+        alasan: `Hasil seleksi kiriman ${receivingId}`,
+        staf: 'Dewi Lestari',
+      };
+      setStockLogs((prev) => [newLog, ...prev]);
+    }
   };
 
   // Tambah Batch Produksi Baru
@@ -128,11 +173,33 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
 
     setBatches((prev) => [created, ...prev]);
+
+    // Log pergerakan bahan keluar ke produksi
+    const newLog: StockMovementLog = {
+      id: `LOG-${Date.now()}`,
+      tanggal: input.tanggalMulai,
+      jam,
+      item: input.bahan,
+      kategoriItem: 'Bahan Baku',
+      tipe: 'Keluar',
+      jumlah: input.bahanDipakai,
+      satuan: 'kg',
+      sumber: 'Produksi',
+      alasan: `Digunakan untuk batch ${newId} (${input.produk})`,
+      staf: 'Dewi Lestari',
+    };
+    setStockLogs((prev) => [newLog, ...prev]);
+
     return created;
   };
 
-  // Update Status Batch Produksi
-  const updateBatchStatus = (batchId: string, newStatus: BatchStatus, catatan?: string) => {
+  // Update Status Batch Produksi & Stok Produk Jadi
+  const updateBatchStatus = (
+    batchId: string,
+    newStatus: BatchStatus,
+    catatan?: string,
+    finalResult?: { hasilBerhasil: number; gagalReject: number }
+  ) => {
     const now = new Date();
     const jam = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
     const tanggal = '14 Okt 2026';
@@ -140,9 +207,11 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setBatches((prev) =>
       prev.map((b) => {
         if (b.id === batchId) {
-          return {
+          const updated: ProductionBatch = {
             ...b,
             status: newStatus,
+            hasilBerhasil: finalResult !== undefined ? finalResult.hasilBerhasil : b.hasilBerhasil,
+            gagalReject: finalResult !== undefined ? finalResult.gagalReject : b.gagalReject,
             riwayatStatus: [
               ...b.riwayatStatus,
               {
@@ -153,10 +222,57 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               },
             ],
           };
+
+          // Jika status Siap Dijual, perbarui stok produk jadi
+          if (newStatus === 'Siap Dijual' && finalResult) {
+            setInventory((prevInv) => {
+              const matched = prevInv.find(
+                (inv) => inv.productId === b.productId || inv.namaProduk === b.produk
+              );
+              if (matched) {
+                return prevInv.map((inv) =>
+                  inv === matched
+                    ? {
+                        ...inv,
+                        jumlah: inv.jumlah + finalResult.hasilBerhasil,
+                        statusKetersediaan: 'Tersedia',
+                        terakhirDiperbarui: '14 Okt 2026, baru saja',
+                      }
+                    : inv
+                );
+              }
+              return [
+                ...prevInv,
+                {
+                  productId: b.productId,
+                  namaProduk: b.produk,
+                  jumlah: finalResult.hasilBerhasil,
+                  satuan: b.satuan,
+                  statusKetersediaan: 'Tersedia',
+                  lokasiPenyimpanan: 'Gudang Display A-1',
+                  terakhirDiperbarui: '14 Okt 2026, baru saja',
+                },
+              ];
+            });
+          }
+
+          return updated;
         }
         return b;
       })
     );
+  };
+
+  // Tambah Tugas Baru (dari Admin / Sistem)
+  const addTask: WorkerDataContextType['addTask'] = (input) => {
+    const nextId = `TSK-2026-00${tasks.length + 1}`;
+    const created: WorkerTask = {
+      ...input,
+      id: nextId,
+      dibuatPada: '14 Okt 2026',
+    };
+    setTasks((prev) => [created, ...prev]);
+    return created;
   };
 
   // Update Status Tugas
@@ -164,6 +280,81 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
+  };
+
+  // Penyesuaian Stok Bahan Baku Manual (Tambah / Kurang)
+  const adjustMaterialStock = (
+    namaBahan: string,
+    tipe: 'Tambah' | 'Kurang',
+    jumlahKg: number,
+    alasan: string
+  ) => {
+    const delta = tipe === 'Tambah' ? jumlahKg : -jumlahKg;
+    setManualMaterialAdjustments((prev) => ({
+      ...prev,
+      [namaBahan]: (prev[namaBahan] || 0) + delta,
+    }));
+
+    const now = new Date();
+    const jam = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+    const newLog: StockMovementLog = {
+      id: `LOG-${Date.now()}`,
+      tanggal: '14 Okt 2026',
+      jam,
+      item: namaBahan,
+      kategoriItem: 'Bahan Baku',
+      tipe: tipe === 'Tambah' ? 'Masuk' : 'Keluar',
+      jumlah: jumlahKg,
+      satuan: 'kg',
+      sumber: 'Penyesuaian',
+      alasan,
+      staf: 'Dewi Lestari',
+    };
+    setStockLogs((prev) => [newLog, ...prev]);
+  };
+
+  // Penyesuaian Stok Produk Jadi Manual (Tambah / Kurang)
+  const adjustProductStock = (
+    namaProduk: string,
+    tipe: 'Tambah' | 'Kurang',
+    jumlah: number,
+    alasan: string
+  ) => {
+    const delta = tipe === 'Tambah' ? jumlah : -jumlah;
+    let unitSatuan = 'pcs';
+
+    setInventory((prev) =>
+      prev.map((inv) => {
+        if (inv.namaProduk === namaProduk) {
+          unitSatuan = inv.satuan;
+          const newQty = Math.max(0, inv.jumlah + delta);
+          return {
+            ...inv,
+            jumlah: newQty,
+            statusKetersediaan: newQty > 20 ? 'Tersedia' : newQty > 0 ? 'Menipis' : 'Habis',
+            terakhirDiperbarui: '14 Okt 2026, baru saja',
+          };
+        }
+        return inv;
+      })
+    );
+
+    const now = new Date();
+    const jam = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+    const newLog: StockMovementLog = {
+      id: `LOG-${Date.now()}`,
+      tanggal: '14 Okt 2026',
+      jam,
+      item: namaProduk,
+      kategoriItem: 'Produk Jadi',
+      tipe: tipe === 'Tambah' ? 'Masuk' : 'Keluar',
+      jumlah: jumlah,
+      satuan: unitSatuan,
+      sumber: 'Penyesuaian',
+      alasan,
+      staf: 'Dewi Lestari',
+    };
+    setStockLogs((prev) => [newLog, ...prev]);
   };
 
   // Perhitungan Stok Bahan Baku Layak secara realtime
@@ -200,15 +391,16 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     });
 
-    // 3. Hitung sisa layak
+    // 3. Hitung sisa layak + penyesuaian manual
     const result: MaterialStockSummary[] = [];
     map.forEach((item) => {
-      item.sisaLayakKg = Math.max(0, item.totalLayakKg - item.terpakaiProduksiKg);
+      const adj = manualMaterialAdjustments[item.namaBahan] || 0;
+      item.sisaLayakKg = Math.max(0, item.totalLayakKg - item.terpakaiProduksiKg + adj);
       result.push(item);
     });
 
     return result;
-  }, [receivings, batches]);
+  }, [receivings, batches, manualMaterialAdjustments]);
 
   // Statistik Realtime
   const stats = useMemo(() => {
@@ -259,10 +451,14 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addBatch,
         updateBatchStatus,
         tasks,
+        addTask,
         updateTaskStatus,
         pendingTasksCount,
         materialStocks,
         inventory,
+        stockLogs,
+        adjustMaterialStock,
+        adjustProductStock,
         stats,
       }}
     >

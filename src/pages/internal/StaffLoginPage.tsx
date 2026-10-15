@@ -52,7 +52,7 @@ export const StaffLoginPage: React.FC = () => {
   useEffect(() => {
     if (isStaffLoggedIn) {
       if (role === 'admin') {
-        navigate('/internal/admin', { replace: true });
+        navigate('/internal/admin/dashboard', { replace: true });
       } else {
         navigate('/internal/pekerja/ringkasan', { replace: true });
       }
@@ -74,7 +74,7 @@ export const StaffLoginPage: React.FC = () => {
     e.preventDefault();
     loginStaff(selectedRole);
     if (selectedRole === 'admin') {
-      navigate('/internal/admin');
+      navigate('/internal/admin/dashboard');
     } else {
       navigate('/internal/pekerja/ringkasan');
     }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStaffAuth } from '../../../context/StaffAuthContext';
 import { useWorkerData } from '../../../context/WorkerDataContext';
 import { SmartImage } from '../../../components/ui/SmartImage';
+import { WorkerStatusBadge } from '../../../components/internal/WorkerStatusBadge';
 import {
   PackageCheck,
   ShieldCheck,
@@ -354,20 +355,15 @@ export const WorkerOverviewPage: React.FC = () => {
             return (
               <div
                 key={batch.id}
-                className="p-4 rounded-2xl bg-[#FBFBFD] border border-[#E8E8ED] space-y-3 hover:border-[#2E7D4F]/30 transition-all flex flex-col justify-between"
+                onClick={() => navigate(`/internal/pekerja/produksi/${batch.id}`)}
+                className="p-4 rounded-2xl bg-[#FBFBFD] border border-[#E8E8ED] space-y-3 hover:border-[#2E7D4F]/40 transition-all flex flex-col justify-between cursor-pointer"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-[10px] font-mono font-medium text-[#6E6E73] bg-white px-2 py-0.5 rounded-md border border-[#E8E8ED]">
                       {batch.id}
                     </span>
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getBatchBadgeClass(
-                        batch.status
-                      )}`}
-                    >
-                      {batch.status}
-                    </span>
+                    <WorkerStatusBadge status={batch.status} size="sm" />
                   </div>
 
                   <h3 className="text-sm font-bold text-[#1D1D1F] line-clamp-1">{batch.produk}</h3>

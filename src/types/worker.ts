@@ -94,3 +94,21 @@ export interface WorkerTask {
   status: TaskStatus;
   dibuatPada: string;
 }
+
+export type StockMovementType = 'Masuk' | 'Keluar';
+export type StockMovementSource = 'Seleksi' | 'Produksi' | 'Penyesuaian';
+
+export interface StockMovementLog {
+  id: string;
+  tanggal: string;
+  jam: string;
+  item: string;
+  kategoriItem: 'Bahan Baku' | 'Produk Jadi';
+  tipe: StockMovementType;
+  jumlah: number;
+  satuan: string;
+  sumber: StockMovementSource;
+  alasan: string;
+  staf: string;
+}
+

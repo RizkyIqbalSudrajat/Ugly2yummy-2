@@ -25,7 +25,7 @@ export const StaffProtectedRoute: React.FC<StaffProtectedRouteProps> = ({
       return <Navigate to="/internal/pekerja/ringkasan" replace />;
     }
     if (role === 'admin') {
-      return <Navigate to="/internal/admin" replace />;
+      return <Navigate to="/internal/admin/dashboard" replace />;
     }
     return <Navigate to="/internal/masuk" replace />;
   }

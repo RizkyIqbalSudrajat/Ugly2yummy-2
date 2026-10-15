@@ -9,6 +9,7 @@ import {
 } from '../../../types/worker';
 import { DUMMY_SUPPLIERS } from '../../../data/workerDummy';
 import { SmartImage } from '../../../components/ui/SmartImage';
+import { WorkerStatusBadge } from '../../../components/internal/WorkerStatusBadge';
 import {
   PackageCheck,
   Plus,
@@ -364,20 +365,7 @@ export const WorkerReceivingPage: React.FC = () => {
                   </td>
                   <td className="py-3.5 px-4 text-[#6E6E73]">{item.tanggalMasuk}</td>
                   <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
-                        item.status === 'Sudah Diseleksi'
-                          ? 'bg-[#EBF4EE] text-[#2E7D4F] border-[#2E7D4F]/20'
-                          : 'bg-amber-50 text-amber-700 border-amber-200/80'
-                      }`}
-                    >
-                      {item.status === 'Sudah Diseleksi' ? (
-                        <CheckCircle2 className="w-3 h-3 text-[#2E7D4F]" />
-                      ) : (
-                        <Clock className="w-3 h-3 text-amber-600" />
-                      )}
-                      <span>{item.status}</span>
-                    </span>
+                    <WorkerStatusBadge status={item.status} size="sm" />
                   </td>
                   <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                     {item.status === 'Menunggu Diseleksi' ? (
@@ -457,15 +445,7 @@ export const WorkerReceivingPage: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-[#E8E8ED]/60 text-xs">
-                <span
-                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                    item.status === 'Sudah Diseleksi'
-                      ? 'bg-[#EBF4EE] text-[#2E7D4F] border-[#2E7D4F]/20'
-                      : 'bg-amber-50 text-amber-700 border-amber-200/80'
-                  }`}
-                >
-                  {item.status}
-                </span>
+                <WorkerStatusBadge status={item.status} size="sm" />
 
                 {item.status === 'Menunggu Diseleksi' ? (
                   <button
@@ -808,16 +788,8 @@ export const WorkerReceivingPage: React.FC = () => {
                 </div>
 
                 <div className="p-3 bg-[#FBFBFD] rounded-2xl border border-[#E8E8ED]">
-                  <span className="text-[10px] font-semibold text-[#6E6E73] block">Status Inspeksi</span>
-                  <span
-                    className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full mt-1 border ${
-                      selectedReceiving.status === 'Sudah Diseleksi'
-                        ? 'bg-[#EBF4EE] text-[#2E7D4F] border-[#2E7D4F]/20'
-                        : 'bg-amber-50 text-amber-700 border-amber-200/80'
-                    }`}
-                  >
-                    {selectedReceiving.status}
-                  </span>
+                  <span className="text-[10px] font-semibold text-[#6E6E73] block mb-1">Status Inspeksi</span>
+                  <WorkerStatusBadge status={selectedReceiving.status} size="sm" />
                 </div>
               </div>
 
