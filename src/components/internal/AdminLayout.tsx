@@ -296,7 +296,7 @@ export const AdminLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FBFBFD] flex flex-col lg:flex-row text-[#1D1D1F]">
       {/* Mobile Top Bar */}
-      <header className="lg:hidden sticky top-0 z-30 h-14 bg-white/95 backdrop-blur-md border-b border-[#E8E8ED] px-4 flex items-center justify-between">
+      <header className="lg:hidden sticky top-0 z-30 h-14 bg-white/95 backdrop-blur-md border-b border-[#E8E8ED] px-4 flex items-center justify-between no-print">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -380,7 +380,7 @@ export const AdminLayout: React.FC = () => {
       )}
 
       {/* Desktop Sidebar (Fixed left ~260px) */}
-      <aside className="hidden lg:flex flex-col w-[260px] shrink-0 h-screen sticky top-0 bg-white border-r border-[#E8E8ED]">
+      <aside className="hidden lg:flex flex-col w-[260px] shrink-0 h-screen sticky top-0 bg-white border-r border-[#E8E8ED] no-print">
         {/* Brand Header */}
         <div className="p-5 pb-4 shrink-0">
           <Link
@@ -411,7 +411,7 @@ export const AdminLayout: React.FC = () => {
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
         <div className="max-w-[1200px] mx-auto w-full">
           {/* Desktop Content Header */}
-          <div className="hidden lg:flex items-start justify-between gap-4 mb-8 pb-5 border-b border-[#E8E8ED]">
+          <div className="hidden lg:flex items-start justify-between gap-4 mb-8 pb-5 border-b border-[#E8E8ED] no-print">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">
                 {pageInfo.title}

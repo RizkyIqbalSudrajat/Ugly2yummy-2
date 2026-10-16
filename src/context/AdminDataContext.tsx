@@ -16,6 +16,7 @@ import {
   MonthlyRevenueData,
   ProductSalesStat,
   NegotiationHistory,
+  AdminSettings,
 } from '../types/admin';
 import {
   INITIAL_SUPPLIERS,
@@ -85,6 +86,7 @@ export interface AdminDataContextType {
     id: string,
     patch: Partial<AdminProduct>
   ) => void;
+  deleteProduct: (id: string) => void;
 
   // Ulasan
   reviews: AdminReview[];
@@ -93,10 +95,17 @@ export interface AdminDataContextType {
 
   // Pengguna
   users: AdminUser[];
+  addUser: (user: Omit<AdminUser, 'id' | 'tanggalBergabung'>) => AdminUser;
+  updateUser: (id: string, patch: Partial<AdminUser>) => void;
   toggleUserStatus: (id: string) => void;
+
+  // Pengaturan
+  settings: AdminSettings;
+  updateSettings: (patch: Partial<AdminSettings>) => void;
 
   // Notifikasi
   notifications: AdminNotification[];
+  addNotification: (notif: Omit<AdminNotification, 'id' | 'waktu' | 'sudahDibaca'>) => void;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
 
@@ -124,6 +133,23 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [products, setProducts] = useState<AdminProduct[]>(INITIAL_ADMIN_PRODUCTS);
   const [reviews, setReviews] = useState<AdminReview[]>(INITIAL_ADMIN_REVIEWS);
   const [users, setUsers] = useState<AdminUser[]>(INITIAL_ADMIN_USERS);
+  const [settings, setSettings] = useState<AdminSettings>({
+    namaToko: 'Ugly2Yummy Kitchen & Mart',
+    alamatGudang: 'Jl. Gandapura No. 42, Merdeka, Kec. Sumur Bandung, Kota Bandung, Jawa Barat 40113',
+    emailToko: 'halo@ugly2yummy.id',
+    noWhatsApp: '0812-3456-7890',
+    rekeningBank: 'Bank Central Asia (BCA)',
+    nomorRekening: '1390-4821-99',
+    atasNamaRekening: 'PT Ugly2Yummy Berkah Pangan',
+    activeCouriers: {
+      JNE: true,
+      SiCepat: true,
+      'J&T': true,
+      GoSend: true,
+    },
+    ambangStokBahanKg: 10,
+    ambangStokProdukUnit: 25,
+  });
   const [notifications, setNotifications] = useState<AdminNotification[]>(INITIAL_ADMIN_NOTIFICATIONS);
   const [monthlyRevenue] = useState<MonthlyRevenueData[]>(MONTHLY_REVENUE_DATA);
   const [productSales] = useState<ProductSalesStat[]>(PRODUCT_SALES_STATS);
@@ -192,6 +218,22 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setOrders((prev) =>
       prev.map((ord) => {
         if (ord.id === id) {
+          // Jika status berubah jadi Dikemas, kurangi stok produk
+          if (status === 'Dikemas' && ord.status !== 'Dikemas' && ord.status !== 'Selesai') {
+            setProducts((prodPrev) =>
+              prodPrev.map((prod) => {
+                const matchedItem = ord.item.find((it) => it.produkId === prod.id || it.namaProduk.toLowerCase() === prod.nama.toLowerCase());
+                if (matchedItem) {
+                  return {
+                    ...prod,
+                    stok: Math.max(0, prod.stok - matchedItem.jumlah),
+                  };
+                }
+                return prod;
+              })
+            );
+          }
+
           return {
             ...ord,
             status,
@@ -218,6 +260,14 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ],
     };
     setShippings((prev) => [created, ...prev]);
+
+    // Jika ada nomor resi, otomatis cantumkan ke pesanan
+    if (input.nomorResi && input.pesananId) {
+      setOrders((prev) =>
+        prev.map((ord) => (ord.id === input.pesananId ? { ...ord, resiPengiriman: input.nomorResi } : ord))
+      );
+    }
+
     return created;
   };
 
@@ -225,6 +275,13 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setShippings((prev) =>
       prev.map((shp) => {
         if (shp.id === id) {
+          // Jika status berubah jadi Terkirim, otomatis selesaikan pesanan terkait
+          if (status === 'Terkirim') {
+            setOrders((ordPrev) =>
+              ordPrev.map((ord) => (ord.id === shp.pesananId ? { ...ord, status: 'Selesai' } : ord))
+            );
+          }
+
           return {
             ...shp,
             status,
@@ -245,7 +302,7 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Produk Admin
   const addProduct: AdminDataContextType['addProduct'] = (input) => {
-    const nextId = input.nama.toLowerCase().replace(/\s+/g, '-');
+    const nextId = input.nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `prd-${Date.now()}`;
     const created: AdminProduct = {
       ...input,
       id: nextId,
@@ -258,6 +315,10 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProducts((prev) =>
       prev.map((prod) => (prod.id === id ? { ...prod, ...patch } : prod))
     );
+  };
+
+  const deleteProduct: AdminDataContextType['deleteProduct'] = (id) => {
+    setProducts((prev) => prev.filter((prod) => prod.id !== id));
   };
 
   // Ulasan
@@ -281,6 +342,23 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   // Pengguna
+  const addUser: AdminDataContextType['addUser'] = (input) => {
+    const nextId = `USR-${(users.length + 1).toString().padStart(3, '0')}`;
+    const newUser: AdminUser = {
+      ...input,
+      id: nextId,
+      tanggalBergabung: '14 Okt 2026',
+    };
+    setUsers((prev) => [newUser, ...prev]);
+    return newUser;
+  };
+
+  const updateUser: AdminDataContextType['updateUser'] = (id, patch) => {
+    setUsers((prev) =>
+      prev.map((usr) => (usr.id === id ? { ...usr, ...patch } : usr))
+    );
+  };
+
   const toggleUserStatus: AdminDataContextType['toggleUserStatus'] = (id) => {
     setUsers((prev) =>
       prev.map((usr) =>
@@ -294,7 +372,30 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   };
 
+  // Pengaturan
+  const updateSettings: AdminDataContextType['updateSettings'] = (patch) => {
+    setSettings((prev) => ({
+      ...prev,
+      ...patch,
+      activeCouriers: {
+        ...prev.activeCouriers,
+        ...(patch.activeCouriers || {}),
+      },
+    }));
+  };
+
   // Notifikasi
+  const addNotification: AdminDataContextType['addNotification'] = (input) => {
+    const nextId = `NOTIF-${Date.now()}`;
+    const newNotif: AdminNotification = {
+      ...input,
+      id: nextId,
+      waktu: 'Baru saja',
+      sudahDibaca: false,
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+  };
+
   const markNotificationAsRead: AdminDataContextType['markNotificationAsRead'] = (id) => {
     setNotifications((prev) =>
       prev.map((notif) => (notif.id === id ? { ...notif, sudahDibaca: true } : notif))
@@ -351,12 +452,18 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     products,
     addProduct,
     updateProduct,
+    deleteProduct,
     reviews,
     toggleReviewVisibility,
     replyToReview,
     users,
+    addUser,
+    updateUser,
     toggleUserStatus,
+    settings,
+    updateSettings,
     notifications,
+    addNotification,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     monthlyRevenue,

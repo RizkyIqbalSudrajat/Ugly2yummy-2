@@ -380,6 +380,7 @@ export const INITIAL_TASKS: WorkerTask[] = [
     dari: 'Raka Pratama (Admin)',
     status: 'Belum Dikerjakan',
     dibuatPada: '14 Okt 2026, 08:30 WIB',
+    pekerjaNama: 'Dewi Lestari',
   },
   {
     id: 'TSK-002',
@@ -391,6 +392,7 @@ export const INITIAL_TASKS: WorkerTask[] = [
     dari: 'Raka Pratama (Admin)',
     status: 'Belum Dikerjakan',
     dibuatPada: '14 Okt 2026, 08:45 WIB',
+    pekerjaNama: 'Budi Santoso',
   },
   {
     id: 'TSK-003',
@@ -402,6 +404,7 @@ export const INITIAL_TASKS: WorkerTask[] = [
     dari: 'Raka Pratama (Admin)',
     status: 'Sedang Dikerjakan',
     dibuatPada: '14 Okt 2026, 09:00 WIB',
+    pekerjaNama: 'Siti Rahma',
   },
   {
     id: 'TSK-004',
@@ -412,6 +415,7 @@ export const INITIAL_TASKS: WorkerTask[] = [
     dari: 'Raka Pratama (Admin)',
     status: 'Belum Dikerjakan',
     dibuatPada: '14 Okt 2026, 09:15 WIB',
+    pekerjaNama: 'Agus Setiawan',
   },
   {
     id: 'TSK-005',
@@ -422,6 +426,7 @@ export const INITIAL_TASKS: WorkerTask[] = [
     dari: 'Raka Pratama (Admin)',
     status: 'Belum Dikerjakan',
     dibuatPada: '14 Okt 2026, 09:30 WIB',
+    pekerjaNama: 'Dewi Lestari',
   },
   {
     id: 'TSK-006',
@@ -432,6 +437,7 @@ export const INITIAL_TASKS: WorkerTask[] = [
     dari: 'Raka Pratama (Admin)',
     status: 'Selesai',
     dibuatPada: '13 Okt 2026, 11:00 WIB',
+    pekerjaNama: 'Budi Santoso',
   },
   {
     id: 'TSK-007',
@@ -443,6 +449,7 @@ export const INITIAL_TASKS: WorkerTask[] = [
     dari: 'Raka Pratama (Admin)',
     status: 'Selesai',
     dibuatPada: '13 Okt 2026, 10:00 WIB',
+    pekerjaNama: 'Siti Rahma',
   },
 ];
 
@@ -586,5 +593,19 @@ export const INITIAL_STOCK_LOGS = [
     alasan: 'Hasil seleksi sortir kendali mutu kiriman TRM-2026-0026',
     staf: 'Dewi Lestari',
   },
+];
+
+export interface StaffWorkerOption {
+  id: string;
+  nama: string;
+  peran: string;
+  avatar: string;
+}
+
+export const WORKER_STAFF_LIST: StaffWorkerOption[] = [
+  { id: 'stf-01', nama: 'Dewi Lestari', peran: 'Kepala QC & Sortir', avatar: 'DL' },
+  { id: 'stf-02', nama: 'Budi Santoso', peran: 'Staf Logistik & Sortir', avatar: 'BS' },
+  { id: 'stf-03', nama: 'Siti Rahma', peran: 'Staf Pengolahan & Resep', avatar: 'SR' },
+  { id: 'stf-04', nama: 'Agus Setiawan', peran: 'Operator Oven & Dehidrator', avatar: 'AS' },
 ];
 

@@ -43,6 +43,9 @@ export interface WorkerDataContextType {
 
   // Resep Konversi
   recipes: ConversionRecipe[];
+  addRecipe: (newRecipe: Omit<ConversionRecipe, 'id'>) => ConversionRecipe;
+  updateRecipe: (id: string, patch: Partial<ConversionRecipe>) => void;
+  deleteRecipe: (id: string) => void;
 
   // Batch Produksi
   batches: ProductionBatch[];
@@ -57,6 +60,8 @@ export interface WorkerDataContextType {
   // Tugas
   tasks: WorkerTask[];
   addTask: (newTask: Omit<WorkerTask, 'id' | 'dibuatPada'>) => WorkerTask;
+  updateTask: (taskId: string, patch: Partial<WorkerTask>) => void;
+  deleteTask: (taskId: string) => void;
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
   pendingTasksCount: number;
 
@@ -90,7 +95,7 @@ const WorkerDataContext = createContext<WorkerDataContextType | undefined>(undef
 
 export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [receivings, setReceivings] = useState<MaterialReceiving[]>(INITIAL_RECEIVINGS);
-  const [recipes] = useState<ConversionRecipe[]>(CONVERSION_RECIPES);
+  const [recipes, setRecipes] = useState<ConversionRecipe[]>(CONVERSION_RECIPES);
   const [batches, setBatches] = useState<ProductionBatch[]>(INITIAL_BATCHES);
   const [tasks, setTasks] = useState<WorkerTask[]>(INITIAL_TASKS);
   const [inventory, setInventory] = useState<ProductInventory[]>(INITIAL_INVENTORY);
@@ -275,11 +280,44 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return created;
   };
 
-  // Update Status Tugas
+  // Update Data Tugas (Admin)
+  const updateTask: WorkerDataContextType['updateTask'] = (taskId, patch) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t))
+    );
+  };
+
+  // Hapus Tugas (Admin)
+  const deleteTask: WorkerDataContextType['deleteTask'] = (taskId) => {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  };
+
+  // Update Status Tugas (Pekerja / Admin)
   const updateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
+  };
+
+  // Resep Konversi CRUD
+  const addRecipe: WorkerDataContextType['addRecipe'] = (input) => {
+    const nextId = `RCP-00${recipes.length + 1}`;
+    const created: ConversionRecipe = {
+      ...input,
+      id: nextId,
+    };
+    setRecipes((prev) => [...prev, created]);
+    return created;
+  };
+
+  const updateRecipe: WorkerDataContextType['updateRecipe'] = (id, patch) => {
+    setRecipes((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
+    );
+  };
+
+  const deleteRecipe: WorkerDataContextType['deleteRecipe'] = (id) => {
+    setRecipes((prev) => prev.filter((r) => r.id !== id));
   };
 
   // Penyesuaian Stok Bahan Baku Manual (Tambah / Kurang)
@@ -447,11 +485,16 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addReceiving,
         updateReceivingQC,
         recipes,
+        addRecipe,
+        updateRecipe,
+        deleteRecipe,
         batches,
         addBatch,
         updateBatchStatus,
         tasks,
         addTask,
+        updateTask,
+        deleteTask,
         updateTaskStatus,
         pendingTasksCount,
         materialStocks,

@@ -127,8 +127,17 @@ export interface AdminProduct {
   bahanUtama: string;
   komposisiDetail: ProductIngredientFormula[];
   stok: number;
+  satuanStok?: string;
   status: 'Aktif' | 'Draft';
   gambar: string;
+  galeriFoto?: string[];
+  deskripsi?: string;
+  ceritaBahan?: {
+    bahanId?: string;
+    bahanNama: string;
+    petani: string;
+    cerita: string;
+  };
   rating: number;
   jumlahUlasan: number;
 }
@@ -156,7 +165,14 @@ export interface AdminUser {
   tanggalBergabung: string;
 }
 
-export type AdminNotificationType = 'Penawaran' | 'Pesanan' | 'Stok' | 'Tugas' | 'Ulasan';
+export type AdminNotificationType =
+  | 'Penawaran'
+  | 'Pesanan'
+  | 'Pengiriman'
+  | 'Stok'
+  | 'Tugas'
+  | 'Ulasan'
+  | 'Sistem';
 
 export interface AdminNotification {
   id: string;
@@ -178,4 +194,22 @@ export interface ProductSalesStat {
   namaProduk: string;
   totalUnit: number;
   totalPendapatan: number;
+}
+
+export interface AdminSettings {
+  namaToko: string;
+  alamatGudang: string;
+  emailToko: string;
+  noWhatsApp: string;
+  rekeningBank: string;
+  nomorRekening: string;
+  atasNamaRekening: string;
+  activeCouriers: {
+    JNE: boolean;
+    SiCepat: boolean;
+    'J&T': boolean;
+    GoSend: boolean;
+  };
+  ambangStokBahanKg: number;
+  ambangStokProdukUnit: number;
 }

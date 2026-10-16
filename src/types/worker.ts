@@ -93,6 +93,8 @@ export interface WorkerTask {
   dari: string; // "Raka Pratama (Admin)"
   status: TaskStatus;
   dibuatPada: string;
+  pekerjaNama?: string; // e.g. 'Dewi Lestari'
+  pekerjaAvatar?: string;
 }
 
 export type StockMovementType = 'Masuk' | 'Keluar';
