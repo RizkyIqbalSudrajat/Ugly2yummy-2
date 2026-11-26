@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import {
   MaterialReceiving,
   QCResult,
@@ -7,6 +7,7 @@ import {
   BatchStatus,
   WorkerTask,
   TaskStatus,
+  TaskPriority,
   ProductInventory,
   IngredientCategory,
   StockMovementLog,
@@ -93,14 +94,74 @@ export interface WorkerDataContextType {
 
 const WorkerDataContext = createContext<WorkerDataContextType | undefined>(undefined);
 
+const WORKER_TASKS_STORAGE_KEY = 'ugly2yummy_worker_tasks_v1';
+
+function normalizeTask(raw: WorkerTask): WorkerTask {
+  const statusMap: Record<string, TaskStatus> = {
+    'Belum Dikerjakan': 'Belum Mulai',
+    'Sedang Dikerjakan': 'Dalam Proses',
+    'Belum Mulai': 'Belum Mulai',
+    'Dalam Proses': 'Dalam Proses',
+    'Selesai': 'Selesai',
+  };
+  const priorityMap: Record<string, TaskPriority> = {
+    Tinggi: 'Tinggi',
+    Sedang: 'Normal',
+    Normal: 'Normal',
+    Rendah: 'Rendah',
+  };
+  return {
+    ...raw,
+    status: statusMap[raw.status] || 'Belum Mulai',
+    prioritas: priorityMap[raw.prioritas] || 'Normal',
+  };
+}
+
+function loadStoredTasks(): WorkerTask[] {
+  try {
+    const raw = localStorage.getItem(WORKER_TASKS_STORAGE_KEY);
+    if (!raw) return INITIAL_TASKS;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return INITIAL_TASKS;
+    return parsed.map(normalizeTask);
+  } catch {
+    return INITIAL_TASKS;
+  }
+}
+
 export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [receivings, setReceivings] = useState<MaterialReceiving[]>(INITIAL_RECEIVINGS);
   const [recipes, setRecipes] = useState<ConversionRecipe[]>(CONVERSION_RECIPES);
   const [batches, setBatches] = useState<ProductionBatch[]>(INITIAL_BATCHES);
-  const [tasks, setTasks] = useState<WorkerTask[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<WorkerTask[]>(loadStoredTasks);
   const [inventory, setInventory] = useState<ProductInventory[]>(INITIAL_INVENTORY);
   const [stockLogs, setStockLogs] = useState<StockMovementLog[]>(INITIAL_STOCK_LOGS);
   const [manualMaterialAdjustments, setManualMaterialAdjustments] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WORKER_TASKS_STORAGE_KEY, JSON.stringify(tasks));
+    } catch {
+      // ignore storage errors
+    }
+  }, [tasks]);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === WORKER_TASKS_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setTasks(parsed.map(normalizeTask));
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   // Tambah Penerimaan Bahan Baru
   const addReceiving: WorkerDataContextType['addReceiving'] = (input) => {
@@ -270,11 +331,18 @@ export const WorkerDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Tambah Tugas Baru (dari Admin / Sistem)
   const addTask: WorkerDataContextType['addTask'] = (input) => {
-    const nextId = `TSK-2026-00${tasks.length + 1}`;
+    const now = new Date();
+    const jam = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+    const maxNum = tasks.reduce((max, t) => {
+      const m = t.id.match(/(\d+)$/);
+      const num = m ? parseInt(m[1], 10) : 0;
+      return Math.max(max, num);
+    }, tasks.length);
+    const nextId = `TSK-${String(maxNum + 1).padStart(3, '0')}`;
     const created: WorkerTask = {
       ...input,
       id: nextId,
-      dibuatPada: '14 Okt 2026',
+      dibuatPada: `14 Okt 2026, ${jam}`,
     };
     setTasks((prev) => [created, ...prev]);
     return created;

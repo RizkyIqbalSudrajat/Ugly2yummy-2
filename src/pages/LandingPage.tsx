@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion, Variants } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Container } from '../components/ui/Container';
 import { Button } from '../components/ui/Button';
@@ -8,41 +8,199 @@ import { SmartImage } from '../components/ui/SmartImage';
 import { PRODUCTS, INGREDIENTS, LANDING_IMPACT } from '../data/dummy';
 import {
   ArrowRight,
+  ArrowDown,
   Sparkles,
   Truck,
   CookingPot,
+  UtensilsCrossed,
   HeartHandshake,
   Quote,
   MapPin,
+  ShoppingBag,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
 
-import { Variants } from 'framer-motion';
+// ============================================================================
+// SLOT LINK FOTO SESUAI INSTRUKSI (JANGAN GANTI SENDIRI JIKA MASIH TEMPEL LINK)
+// ============================================================================
+const BG_MISI_IMAGE = '[TEMPEL LINK FOTO 1]';
+const BG_CARA_KERJA_IMAGE = '[TEMPEL LINK FOTO 2]';
+const BG_PRODUK_IMAGE = '[TEMPEL LINK FOTO 6]';
+const BG_CERITA_IMAGE = '[TEMPEL LINK FOTO 7]';
+const BG_DAMPAK_IMAGE = '[TEMPEL LINK FOTO 8]';
+const BG_PENUTUP_IMAGE = '[TEMPEL LINK FOTO 9]';
 
-const fadeUpVariant: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.7,
-      ease: 'easeOut',
-    },
-  },
-};
+// Foto langkah Cara Kerja
+const CARA_KERJA_FOTO_1 = '[TEMPEL LINK FOTO 3]';
+const CARA_KERJA_FOTO_2 = '[TEMPEL LINK FOTO 4]';
+const CARA_KERJA_FOTO_3 = '[TEMPEL LINK FOTO 5]';
 
-// Foto latar belakang lahan pertanian untuk Hero
+// Foto Hero (tetap seperti semula)
 const HERO_FARM_IMAGE =
   'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=2000&q=80';
 
+// ============================================================================
+// KOMPONEN SectionBackground
+// ============================================================================
+interface SectionBackgroundProps {
+  imageSrc: string;
+  gradientFallback: string;
+  overlayClassName: string;
+  altText?: string;
+}
+
+const SectionBackground: React.FC<SectionBackgroundProps> = ({
+  imageSrc,
+  gradientFallback,
+  overlayClassName,
+  altText = 'Latar belakang section',
+}) => {
+  const [loadError, setLoadError] = useState(false);
+
+  // Jika slot masih placeholder [TEMPEL LINK ...] gunakan fallback gradasi warna section
+  const isPlaceholder = !imageSrc || imageSrc.includes('[TEMPEL LINK');
+  const isValidUrl =
+    !isPlaceholder &&
+    !loadError &&
+    (imageSrc.startsWith('http://') ||
+      imageSrc.startsWith('https://') ||
+      imageSrc.startsWith('/'));
+
+  return (
+    <div
+      className={`absolute inset-0 overflow-hidden pointer-events-none select-none z-0 ${gradientFallback}`}
+      aria-hidden="true"
+    >
+      {isValidUrl && (
+        <img
+          src={imageSrc}
+          alt={altText}
+          loading="lazy"
+          onError={() => setLoadError(true)}
+          className="w-full h-full object-cover object-center"
+        />
+      )}
+      {/* Overlay dengan opasitas adaptif kontras tinggi */}
+      <div className={`absolute inset-0 ${overlayClassName}`} />
+    </div>
+  );
+};
+
+// ============================================================================
+// KOMPONEN StepImageCard (Visualisasi Langkah Cara Kerja)
+// ============================================================================
+interface StepImageCardProps {
+  imageSrc: string;
+  stepNumber: string;
+  icon: React.ReactNode;
+  fallbackGradient: string;
+  altText: string;
+}
+
+const StepImageCard: React.FC<StepImageCardProps> = ({
+  imageSrc,
+  stepNumber,
+  icon,
+  fallbackGradient,
+  altText,
+}) => {
+  const [loadError, setLoadError] = useState(false);
+  const isPlaceholder = !imageSrc || imageSrc.includes('[TEMPEL LINK');
+  const isValidUrl =
+    !isPlaceholder &&
+    !loadError &&
+    (imageSrc.startsWith('http://') ||
+      imageSrc.startsWith('https://') ||
+      imageSrc.startsWith('/'));
+
+  return (
+    <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden mb-6 bg-[#E8E8ED] shadow-xs">
+      {isValidUrl ? (
+        <img
+          src={imageSrc}
+          alt={altText}
+          loading="lazy"
+          onError={() => setLoadError(true)}
+          className="w-full h-full object-cover object-center"
+        />
+      ) : (
+        <div
+          className={`w-full h-full flex items-center justify-center ${fallbackGradient}`}
+        >
+          <div className="text-[#1E432D]/40 scale-125">{icon}</div>
+        </div>
+      )}
+
+      {/* Badge Nomor & Ikon di Atas Foto */}
+      <div className="absolute top-3.5 left-3.5 flex items-center gap-2">
+        <span className="h-8 px-2.5 rounded-xl bg-white text-[#1E432D] font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
+          {stepNumber}
+        </span>
+        <span className="w-8 h-8 rounded-xl bg-[#1E432D] text-white flex items-center justify-center shadow-md">
+          {icon}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// HELPER LABEL KEBUTUHAN PRODUK
+// ============================================================================
+const getProductUsageLabel = (product: typeof PRODUCTS[0]): string => {
+  const kat = product.kategori.toLowerCase();
+  const nama = product.nama.toLowerCase();
+
+  if (kat.includes('saus') || kat.includes('sambal')) {
+    return 'Masak harian, pasta & marinasi';
+  }
+  if (kat.includes('selai') || nama.includes('bread') || nama.includes('pisang')) {
+    return 'Sarapan roti, pancake & kue';
+  }
+  if (kat.includes('camilan') || nama.includes('keripik')) {
+    return 'Camilan santai renyah & sehat';
+  }
+  return 'Pelengkap makan & masak';
+};
+
+// ============================================================================
+// HALAMAN UTAMA (LANDING PAGE)
+// ============================================================================
 export const LandingPage: React.FC = () => {
-  const { isLoggedIn, loginDemo } = useAuth();
+  const { isLoggedIn, loginDemo, startGuestMode } = useAuth();
   const navigate = useNavigate();
-  const [bgImageError, setBgImageError] = React.useState(false);
+  const [bgHeroError, setBgHeroError] = useState(false);
 
-  // Tomat Bengkok ingredient for section 5
-  const tomatBengkok = INGREDIENTS.find((i) => i.id === 'tomat-bengkok') || INGREDIENTS[0];
+  const handleGuestBuy = () => {
+    startGuestMode();
+    navigate('/produk', {
+      state: {
+        guestToast: 'Kamu belanja sebagai tamu. Data pengiriman diisi saat checkout.',
+      },
+    });
+  };
 
-  // Bento products (1 featured large + 3 secondary)
+  // Hormati prefers-reduced-motion
+  const shouldReduceMotion = useReducedMotion();
+
+  const fadeUpVariant: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 24 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.6,
+        ease: 'easeOut',
+      },
+    },
+  };
+
+  // Tomat Bengkok untuk Cerita Bahan
+  const tomatBengkok =
+    INGREDIENTS.find((i) => i.id === 'tomat-bengkok') || INGREDIENTS[0];
+
+  // Bento products
   const heroProduct = PRODUCTS[0]; // Saus Tomat Panggang
   const bentoProducts = [
     PRODUCTS[0], // Saus Tomat Panggang (Large card)
@@ -61,39 +219,35 @@ export const LandingPage: React.FC = () => {
   return (
     <div className="overflow-hidden">
       {/* =========================================================================
-          1. HERO SECTION (Latar Foto Pertanian Full-Width + Overlay Gelap)
+          1. HERO SECTION (TETAP SEPERTI ASLINYA - TOMBOL HERO TIDAK DIUBAH)
           ========================================================================= */}
       <section className="relative w-full min-h-[80vh] md:min-h-[85vh] lg:min-h-[90vh] flex items-center bg-gradient-to-br from-[#0a1c10] via-[#122e1b] to-[#07130a] overflow-hidden -mt-[52px] sm:-mt-14 pt-[80px] sm:pt-24 pb-14 sm:pb-20">
-        {/* Foto Background Pertanian Full-Width */}
-        {!bgImageError && (
+        {!bgHeroError && (
           <img
             src={HERO_FARM_IMAGE}
             alt="Lahan pertanian tempat bahan Ugly2Yummy dipanen"
-            onError={() => setBgImageError(true)}
+            onError={() => setBgHeroError(true)}
             className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
           />
         )}
 
-        {/* Overlay Gelap Gradasi untuk Aksesibilitas Kontras Teks (60%-85% ke 25%) */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/35 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
 
         <Container className="relative z-10 w-full">
           <div className="lg:grid lg:grid-cols-12 lg:gap-12 items-center">
-            {/* Kolom Teks & Aksi Hero (Di HP cukup teks dan tombol saja) */}
+            {/* Kolom Teks & Aksi Hero */}
             <motion.div
               initial="hidden"
               animate="visible"
               variants={fadeUpVariant}
               className="lg:col-span-7 xl:col-span-7 text-left max-w-2xl"
             >
-              {/* Label Kecil: Toko Online Produk Upcycled */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-semibold uppercase tracking-wider mb-5 sm:mb-6 border border-white/20 shadow-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#4ADE80]" />
                 <span>Toko Online Produk Upcycled</span>
               </div>
 
-              {/* Judul Besar dengan Kata Aksen Hijau Muda */}
               <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white leading-[1.08] text-balance">
                 Tak sempurna di mata, <br className="hidden sm:inline" />
                 <span className="font-['Instrument_Serif'] italic font-normal text-[#86EFAC] text-[1.12em] tracking-normal inline-block drop-shadow-sm">
@@ -101,12 +255,11 @@ export const LandingPage: React.FC = () => {
                 </span>
               </h1>
 
-              {/* Subjudul Putih Jelas & Ramah */}
               <p className="mt-4 sm:mt-6 text-base sm:text-lg md:text-xl text-white/90 max-w-xl leading-relaxed text-balance font-normal">
                 Belanja selai, saus, dan camilan dari bahan imperfect, dikirim langsung ke rumahmu.
               </p>
 
-              {/* Tombol Aksi: Hijau Pill & Putih Transparan Blur */}
+              {/* Tombol Hero */}
               <div className="mt-7 sm:mt-9 flex flex-wrap items-center gap-3 sm:gap-4">
                 <Button
                   to="/produk"
@@ -118,25 +271,38 @@ export const LandingPage: React.FC = () => {
                 >
                   Belanja Sekarang
                 </Button>
+                {!isLoggedIn && (
+                  <button
+                    type="button"
+                    onClick={handleGuestBuy}
+                    className="inline-flex items-center justify-center font-medium transition-all duration-200 rounded-full text-sm sm:text-base px-6 py-3 min-h-[46px] sm:min-h-[50px] bg-white/15 hover:bg-white/25 text-white border border-white/30 backdrop-blur-md shadow-xs active:scale-[0.98] cursor-pointer"
+                  >
+                    Beli Tanpa Login
+                  </button>
+                )}
+              </div>
+
+              {/* Cerita Bahan dipindah jadi link teks kecil di bawah tombol */}
+              <div className="mt-3.5">
                 <Link
                   to="/cerita-bahan"
-                  className="inline-flex items-center justify-center font-medium transition-all duration-200 rounded-full text-sm sm:text-base px-6 py-3 min-h-[46px] sm:min-h-[50px] bg-white/15 hover:bg-white/25 text-white border border-white/30 backdrop-blur-md shadow-xs active:scale-[0.98]"
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-white/80 hover:text-white hover:underline transition-colors"
                 >
-                  Cerita Bahan
+                  <span>Cerita Bahan</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
-              {/* Baris Info Kecil Pengiriman */}
               <p className="mt-4 sm:mt-5 text-xs sm:text-sm text-white/80 leading-relaxed">
-                Kirim ke seluruh Indonesia · Bayar via transfer, e-wallet, atau COD
+                Bisa beli tanpa daftar · Kirim ke seluruh Indonesia · Transfer, e-wallet, atau COD
               </p>
             </motion.div>
 
-            {/* Kolom Kanan: Kartu Kaca Produk Unggulan (Hanya tampil di Desktop, bersih & elegan) */}
+            {/* Kolom Kanan: Kartu Kaca Produk Unggulan */}
             <motion.div
-              initial={{ opacity: 0, x: 25 }}
+              initial={shouldReduceMotion ? false : { opacity: 0, x: 25 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+              transition={{ duration: shouldReduceMotion ? 0 : 0.8, delay: 0.2, ease: 'easeOut' }}
               className="hidden lg:flex lg:col-span-5 xl:col-span-5 justify-end"
             >
               <div className="w-full max-w-sm bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-5 text-white shadow-[0_20px_50px_rgba(0,0,0,0.35)] group hover:border-white/35 transition-all duration-300">
@@ -191,180 +357,277 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          2. MISI: SATU PARAGRAF BESAR YANG TENANG
+          2. MISI KAMI (TERANG): DIPERSINGKAT & DILENGKAPI 3 POIN SEBARIS
           ========================================================================= */}
-      <section className="py-14 sm:py-24 md:py-32 bg-[#F5F5F7]">
-        <Container size="narrow">
+      <section className="relative py-16 sm:py-24 md:py-28 overflow-hidden">
+        {/* SectionBackground: Foto Terang dengan overlay putih ±85% + blur halus */}
+        <SectionBackground
+          imageSrc={BG_MISI_IMAGE}
+          gradientFallback="bg-gradient-to-b from-[#FAF8F5] via-[#F4F6F4] to-[#EBF0EC]"
+          overlayClassName="bg-white/90 sm:bg-white/85 backdrop-blur-[2px]"
+          altText="Latar belakang Misi Kami"
+        />
+
+        <Container size="narrow" className="relative z-10">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: '-60px' }}
             variants={fadeUpVariant}
-            className="text-center sm:text-left space-y-6"
+            className="text-left space-y-6"
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F] block">
+            {/* Label Kecil */}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF4EE] text-[#1E432D] text-xs font-bold uppercase tracking-wider border border-[#2E7D4F]/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D4F]" />
               Misi Kami
             </span>
 
-            <p className="text-2xl sm:text-3xl md:text-4xl text-[#1D1D1F] font-medium leading-[1.35] tracking-tight">
-              Di perkebunan nusantara, ribuan ton tomat bengkok, wortel bercabang, dan pisang
-              berbintik manis terbuang sia-sia setiap panen bukan karena rasa yang kurang,
-              melainkan semata karena standar visual etalase ritel yang kaku. Kami hadir untuk
-              menjembatani kebaikan itu — menghargai setiap tetes keringat petani dan mengubah
-              apa yang dicap &quot;tak sempurna&quot; menjadi kemurnian rasa yang layak berada di
-              meja makan keluarga Anda.
+            {/* Judul Sans Tebal Tegas */}
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#1D1D1F] tracking-tight leading-tight">
+              Rasa tidak ditentukan oleh bentuk.
+            </h2>
+
+            {/* Paragraf Ukuran Sedang */}
+            <p className="text-sm sm:text-base md:text-lg text-[#3A3A3C] leading-relaxed max-w-3xl font-normal">
+              Setiap musim panen, banyak tomat bengkok, wortel bercabang, dan pisang
+              berbintik tidak laku hanya karena bentuknya tidak sesuai standar pasar,
+              padahal rasa dan gizinya sama baiknya. Ugly2Yummy membeli hasil panen itu
+              langsung dari petani dengan harga adil, lalu mengolahnya jadi selai, saus,
+              dan camilan yang enak dan aman dinikmati.
             </p>
 
-            <div className="pt-4 flex items-center gap-3 text-sm text-[#6E6E73]">
-              <span className="font-semibold text-[#1D1D1F]">Ugly2Yummy Manifesto</span>
-              <span>·</span>
-              <span>Gerakan Upcycled Food Indonesia</span>
+            {/* 3 Poin Singkat Sebaris (Di HP Bertumpuk) */}
+            <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 border-t border-[#E8E8ED]">
+              {/* Poin 1 */}
+              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/80 border border-[#E8E8ED] shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center shrink-0">
+                  <HeartHandshake className="w-4 h-4 stroke-[2]" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-[#1D1D1F] leading-snug">
+                  Petani dapat harga adil
+                </span>
+              </div>
+
+              {/* Poin 2 */}
+              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/80 border border-[#E8E8ED] shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4 stroke-[2]" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-[#1D1D1F] leading-snug">
+                  Pangan tidak terbuang
+                </span>
+              </div>
+
+              {/* Poin 3 */}
+              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/80 border border-[#E8E8ED] shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center shrink-0">
+                  <ShoppingBag className="w-4 h-4 stroke-[2]" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-[#1D1D1F] leading-snug">
+                  Kamu dapat produk enak dan terjangkau
+                </span>
+              </div>
             </div>
           </motion.div>
         </Container>
       </section>
 
       {/* =========================================================================
-          3. CARA KERJA: 3 LANGKAH BERJAJAR
+          3. CARA KERJA (GELAP): 3 LANGKAH DENGAN FOTO, GARIS PUTUS-PUTUS & ALUR
           ========================================================================= */}
-      <section className="py-14 sm:py-24 md:py-32">
-        <Container>
+      <section className="relative py-16 sm:py-24 md:py-32 overflow-hidden text-white">
+        {/* SectionBackground: Foto Gelap dengan overlay hijau tua/hitam ±75% */}
+        <SectionBackground
+          imageSrc={BG_CARA_KERJA_IMAGE}
+          gradientFallback="bg-gradient-to-b from-[#0F2417] via-[#142E1E] to-[#0A1810]"
+          overlayClassName="bg-[#0B1A10]/85 sm:bg-[#0B1A10]/75 backdrop-blur-[2px]"
+          altText="Latar belakang Cara Kerja"
+        />
+
+        <Container className="relative z-10">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: '-60px' }}
             variants={fadeUpVariant}
-            className="max-w-2xl mx-auto text-center mb-16 sm:mb-20"
+            className="max-w-2xl mx-auto text-center mb-12 sm:mb-16"
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F] block mb-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[#86EFAC] text-xs font-bold uppercase tracking-wider mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#86EFAC]" />
               Siklus Kebaikan
             </span>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1D1D1F]">
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
               Cara Kerja
             </h2>
-            <p className="mt-3 text-base text-[#6E6E73]">
-              Dari kebun petani hingga ke meja makan Anda melalui proses yang transparan dan terjaga.
+            <p className="mt-3 text-sm sm:text-base text-white/80 max-w-lg mx-auto">
+              Dari kebun petani hingga ke mejamu melalui proses yang transparan dan terjaga.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-            {/* Step 1 */}
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
-              variants={fadeUpVariant}
-              className="bg-white rounded-3xl p-8 sm:p-10 border border-[#E8E8ED] flex flex-col justify-between shadow-none hover:border-[#2E7D4F]/30 transition-colors"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-8">
-                  <div className="w-12 h-12 rounded-2xl bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center">
-                    <Truck className="w-6 h-6 stroke-[1.5]" />
-                  </div>
-                  <span className="text-2xl font-bold text-[#E8E8ED] font-mono">01</span>
+          {/* Grid 3 Kartu Langkah (Kartu Tetap Putih) */}
+          <div className="relative">
+            {/* Garis Alur Putus-putus Antar-Kartu (Desktop Only) */}
+            <div className="hidden md:flex absolute top-[115px] left-0 right-0 justify-between px-[28%] pointer-events-none z-20">
+              <div className="flex items-center gap-1 bg-[#1A3826] border border-white/20 px-2.5 py-1 rounded-full text-white/90 shadow-md">
+                <span className="w-8 border-t-2 border-dashed border-[#86EFAC]/70" />
+                <ArrowRight className="w-3.5 h-3.5 text-[#86EFAC]" />
+              </div>
+              <div className="flex items-center gap-1 bg-[#1A3826] border border-white/20 px-2.5 py-1 rounded-full text-white/90 shadow-md">
+                <span className="w-8 border-t-2 border-dashed border-[#86EFAC]/70" />
+                <ArrowRight className="w-3.5 h-3.5 text-[#86EFAC]" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+              {/* Langkah 1 */}
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-40px' }}
+                variants={fadeUpVariant}
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-white/20 flex flex-col justify-between shadow-xl text-[#1D1D1F]"
+              >
+                <div>
+                  <StepImageCard
+                    imageSrc={CARA_KERJA_FOTO_1}
+                    stepNumber="01"
+                    icon={<Truck className="w-4 h-4 stroke-[2]" />}
+                    fallbackGradient="bg-gradient-to-br from-[#E2EBE4] via-[#D5E3D8] to-[#C3D9C8]"
+                    altText="Langkah 1: Diselamatkan dari Petani"
+                  />
+
+                  <h3 className="text-lg sm:text-xl font-extrabold text-[#1D1D1F] tracking-tight mb-2">
+                    Diselamatkan dari Petani
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#48484A] leading-relaxed">
+                    Kami membeli hasil panen yang tidak lolos standar bentuk pasar modern langsung
+                    dari kebun. Petani mendapatkan kepastian serapan panen dengan harga yang adil.
+                  </p>
                 </div>
 
-                <h3 className="text-xl font-bold text-[#1D1D1F] tracking-tight mb-3">
-                  Diselamatkan dari Petani
-                </h3>
-                <p className="text-sm text-[#6E6E73] leading-relaxed">
-                  Kami membeli langsung hasil panen berkualitas yang ditolak pasar modern karena
-                  bentuk melengkung, ukuran mini, atau kulit berbercak dengan harga yang adil.
-                </p>
+                <div className="mt-6 pt-3.5 border-t border-[#E8E8ED] text-xs text-[#1E432D] font-bold flex items-center gap-1.5">
+                  <HeartHandshake className="w-4 h-4 text-[#2E7D4F]" />
+                  <span>86 Petani Mitra Terhubung</span>
+                </div>
+              </motion.div>
+
+              {/* Garis Vertikal Antara Langkah 1 & 2 di HP */}
+              <div className="md:hidden flex flex-col items-center justify-center -my-2 text-white/80">
+                <div className="h-5 w-0 border-l-2 border-dashed border-[#86EFAC]/60" />
+                <div className="w-6 h-6 rounded-full bg-[#1A3826] border border-[#86EFAC]/50 flex items-center justify-center text-[#86EFAC] my-0.5 shadow-sm">
+                  <ArrowDown className="w-3.5 h-3.5" />
+                </div>
+                <div className="h-5 w-0 border-l-2 border-dashed border-[#86EFAC]/60" />
               </div>
 
-              <div className="mt-8 pt-4 border-t border-[#E8E8ED]/60 text-xs text-[#2E7D4F] font-medium flex items-center gap-1.5">
-                <HeartHandshake className="w-4 h-4" />
-                <span>86 Petani Mitra Terhubung</span>
-              </div>
-            </motion.div>
+              {/* Langkah 2 */}
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-40px' }}
+                variants={fadeUpVariant}
+                transition={{ delay: shouldReduceMotion ? 0 : 0.15 }}
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-white/20 flex flex-col justify-between shadow-xl text-[#1D1D1F]"
+              >
+                <div>
+                  <StepImageCard
+                    imageSrc={CARA_KERJA_FOTO_2}
+                    stepNumber="02"
+                    icon={<CookingPot className="w-4 h-4 stroke-[2]" />}
+                    fallbackGradient="bg-gradient-to-br from-[#EFE9DF] via-[#E4DCD0] to-[#D5C9B8]"
+                    altText="Langkah 2: Diseleksi dan Diolah"
+                  />
 
-            {/* Step 2 */}
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
-              variants={fadeUpVariant}
-              transition={{ delay: 0.1 }}
-              className="bg-white rounded-3xl p-8 sm:p-10 border border-[#E8E8ED] flex flex-col justify-between shadow-none hover:border-[#2E7D4F]/30 transition-colors"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-8">
-                  <div className="w-12 h-12 rounded-2xl bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center">
-                    <CookingPot className="w-6 h-6 stroke-[1.5]" />
-                  </div>
-                  <span className="text-2xl font-bold text-[#E8E8ED] font-mono">02</span>
+                  <h3 className="text-lg sm:text-xl font-extrabold text-[#1D1D1F] tracking-tight mb-2">
+                    Diseleksi dan Diolah
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#48484A] leading-relaxed">
+                    Bahan disortir ketat untuk memastikan nutrisi dan kesegarannya tetap prima.
+                    Dimasak secara artisan tanpa bahan pengawet sintetis.
+                  </p>
                 </div>
 
-                <h3 className="text-xl font-bold text-[#1D1D1F] tracking-tight mb-3">
-                  Diseleksi dan Diolah
-                </h3>
-                <p className="text-sm text-[#6E6E73] leading-relaxed">
-                  Buah dan sayur disortir higienis, memastikan nutrisi dan kesegarannya utuh.
-                  Dimasak perlahan secara artisan tanpa bahan pengawet sintetik.
-                </p>
+                <div className="mt-6 pt-3.5 border-t border-[#E8E8ED] text-xs text-[#1E432D] font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-[#2E7D4F]" />
+                  <span>Resep Alami Tanpa Kimia</span>
+                </div>
+              </motion.div>
+
+              {/* Garis Vertikal Antara Langkah 2 & 3 di HP */}
+              <div className="md:hidden flex flex-col items-center justify-center -my-2 text-white/80">
+                <div className="h-5 w-0 border-l-2 border-dashed border-[#86EFAC]/60" />
+                <div className="w-6 h-6 rounded-full bg-[#1A3826] border border-[#86EFAC]/50 flex items-center justify-center text-[#86EFAC] my-0.5 shadow-sm">
+                  <ArrowDown className="w-3.5 h-3.5" />
+                </div>
+                <div className="h-5 w-0 border-l-2 border-dashed border-[#86EFAC]/60" />
               </div>
 
-              <div className="mt-8 pt-4 border-t border-[#E8E8ED]/60 text-xs text-[#2E7D4F] font-medium flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4" />
-                <span>Resep Alami Tanpa Kimia</span>
-              </div>
-            </motion.div>
+              {/* Langkah 3 */}
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-40px' }}
+                variants={fadeUpVariant}
+                transition={{ delay: shouldReduceMotion ? 0 : 0.3 }}
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-white/20 flex flex-col justify-between shadow-xl text-[#1D1D1F]"
+              >
+                <div>
+                  <StepImageCard
+                    imageSrc={CARA_KERJA_FOTO_3}
+                    stepNumber="03"
+                    icon={<UtensilsCrossed className="w-4 h-4 stroke-[2]" />}
+                    fallbackGradient="bg-gradient-to-br from-[#E1E8EC] via-[#D6E0E6] to-[#C3D2DB]"
+                    altText="Langkah 3: Sampai di Mejamu"
+                  />
 
-            {/* Step 3 */}
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
-              variants={fadeUpVariant}
-              transition={{ delay: 0.2 }}
-              className="bg-white rounded-3xl p-8 sm:p-10 border border-[#E8E8ED] flex flex-col justify-between shadow-none hover:border-[#2E7D4F]/30 transition-colors"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-8">
-                  <div className="w-12 h-12 rounded-2xl bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center">
-                    <Sparkles className="w-6 h-6 stroke-[1.5]" />
-                  </div>
-                  <span className="text-2xl font-bold text-[#E8E8ED] font-mono">03</span>
+                  <h3 className="text-lg sm:text-xl font-extrabold text-[#1D1D1F] tracking-tight mb-2">
+                    Sampai di Mejamu
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#48484A] leading-relaxed">
+                    Dikemas aman dalam wadah ramah lingkungan dan diantar langsung ke rumahmu.
+                    Siap kamu santap untuk sarapan, bumbu masak, atau camilan santai.
+                  </p>
                 </div>
 
-                <h3 className="text-xl font-bold text-[#1D1D1F] tracking-tight mb-3">
-                  Sampai di Mejamu
-                </h3>
-                <p className="text-sm text-[#6E6E73] leading-relaxed">
-                  Dikemas rapi dalam wadah kaca dan pouch ramah lingkungan. Siap Anda nikmati
-                  sebagai sarapan, camilan sehat, atau bumbu masak keluarga.
-                </p>
-              </div>
-
-              <div className="mt-8 pt-4 border-t border-[#E8E8ED]/60 text-xs text-[#2E7D4F] font-medium flex items-center gap-1.5">
-                <span>Transparansi kg Diselamatkan</span>
-              </div>
-            </motion.div>
+                <div className="mt-6 pt-3.5 border-t border-[#E8E8ED] text-xs text-[#1E432D] font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#2E7D4F]" />
+                  <span>Transparansi kg Diselamatkan</span>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </Container>
       </section>
 
       {/* =========================================================================
-          4. PRODUK UNGGULAN: BENTO GRID 4 PRODUK
+          4. PRODUK UNGGULAN (TERANG): BENTO GRID DENGAN LABEL KEBUTUHAN
           ========================================================================= */}
-      <section className="py-14 sm:py-24 md:py-32 bg-[#F5F5F7]">
-        <Container>
+      <section className="relative py-16 sm:py-24 md:py-28 overflow-hidden">
+        {/* SectionBackground: Foto Terang dengan overlay #F5F5F7 ±88% */}
+        <SectionBackground
+          imageSrc={BG_PRODUK_IMAGE}
+          gradientFallback="bg-gradient-to-b from-[#F7F5F0] via-[#F5F5F7] to-[#EDEFF2]"
+          overlayClassName="bg-[#F5F5F7]/95 sm:bg-[#F5F5F7]/88 backdrop-blur-[2px]"
+          altText="Latar belakang Produk Unggulan"
+        />
+
+        <Container className="relative z-10">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: '-60px' }}
             variants={fadeUpVariant}
-            className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 sm:mb-16"
+            className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 sm:mb-14"
           >
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F] block mb-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF4EE] text-[#1E432D] text-xs font-bold uppercase tracking-wider mb-2 border border-[#2E7D4F]/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D4F]" />
                 Pilihan Terbaik
               </span>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1D1D1F]">
+              <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#1D1D1F]">
                 Produk Unggulan
               </h2>
-              <p className="mt-2 text-sm sm:text-base text-[#6E6E73]">
+              <p className="mt-2 text-xs sm:text-base text-[#6E6E73]">
                 Dibuat segar dengan takaran bahan alami penuh cita rasa otentik.
               </p>
             </div>
@@ -375,24 +638,25 @@ export const LandingPage: React.FC = () => {
               size="md"
               icon={<ArrowRight className="w-4 h-4" />}
               iconPosition="right"
+              className="self-start sm:self-auto bg-white border-[#E8E8ED] hover:bg-[#F5F5F7] text-[#1D1D1F] font-semibold text-xs sm:text-sm"
             >
               Lihat Semua Produk
             </Button>
           </motion.div>
 
-          {/* Bento Grid: 1 Kartu Besar (kiri / 2 kolom), 3 Kartu Kecil (kanan / bertumpuk atau bersebelahan) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Bento Grid: 1 Kartu Besar (kiri), 3 Kartu Kecil (kanan) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Kartu Besar (Bento Item 1) */}
             <motion.div
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
+              viewport={{ once: true, margin: '-50px' }}
               variants={fadeUpVariant}
               onClick={() => navigate(`/produk/${bentoProducts[0].id}`)}
-              className="lg:col-span-7 group bg-white rounded-3xl border border-[#E8E8ED] p-6 sm:p-8 flex flex-col justify-between shadow-none hover:border-[#2E7D4F]/30 hover:shadow-xs transition-all duration-300 cursor-pointer"
+              className="lg:col-span-7 group bg-white rounded-3xl border border-[#E8E8ED] p-6 sm:p-8 flex flex-col justify-between shadow-xs hover:border-[#2E7D4F]/40 hover:shadow-md transition-all duration-300 cursor-pointer"
             >
               <div>
-                <div className="relative rounded-2xl overflow-hidden bg-[#F5F5F7] mb-6">
+                <div className="relative rounded-2xl overflow-hidden bg-[#F5F5F7] mb-5">
                   <SmartImage
                     src={bentoProducts[0].gambar}
                     alt={bentoProducts[0].nama}
@@ -401,51 +665,63 @@ export const LandingPage: React.FC = () => {
                     hoverZoom={true}
                     containerClassName="w-full"
                   />
-                  <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-[#2E7D4F]">
+                  <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-xs px-3 py-1 rounded-full text-xs font-bold text-[#1E432D] shadow-xs">
                     {bentoProducts[0].estimasiKgTerselamatkan} kg Terselamatkan
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="text-xs text-[#6E6E73] uppercase tracking-wider font-medium">
-                    {bentoProducts[0].kategori} · {bentoProducts[0].ukuran}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] text-[#6E6E73] uppercase tracking-wider font-bold">
+                      {bentoProducts[0].kategori} · {bentoProducts[0].ukuran}
+                    </span>
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-[#1D1D1F] group-hover:text-[#2E7D4F] transition-colors">
+
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-[#1D1D1F] group-hover:text-[#2E7D4F] transition-colors">
                     {bentoProducts[0].nama}
                   </h3>
-                  <p className="text-sm text-[#6E6E73] leading-relaxed line-clamp-2">
+
+                  <p className="text-xs sm:text-sm text-[#48484A] leading-relaxed line-clamp-2">
                     {bentoProducts[0].deskripsiSingkat}
                   </p>
+
+                  {/* Label Kecil "Cocok untuk: ..." */}
+                  <div className="pt-1">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F5F5F7] border border-[#E8E8ED] text-xs font-medium text-[#48484A]">
+                      <span className="text-[#1E432D] font-bold">Cocok untuk:</span>
+                      <span>{getProductUsageLabel(bentoProducts[0])}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-6 pt-5 border-t border-[#E8E8ED]/70 flex items-center justify-between">
+              <div className="mt-6 pt-4 border-t border-[#E8E8ED] flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-[#6E6E73] block">Asal Bahan:</span>
-                  <span className="text-xs sm:text-sm font-semibold text-[#1D1D1F]">
+                  <span className="text-[11px] text-[#6E6E73] block">Asal Bahan:</span>
+                  <span className="text-xs sm:text-sm font-bold text-[#1D1D1F]">
                     {bentoProducts[0].bahanUtama} (Lembang, Jawa Barat)
                   </span>
                 </div>
-                <span className="text-base sm:text-lg font-bold text-[#1D1D1F] tabular-nums">
+                <span className="text-base sm:text-lg font-extrabold text-[#1D1D1F] tabular-nums">
                   Rp{bentoProducts[0].harga.toLocaleString('id-ID')}
                 </span>
               </div>
             </motion.div>
 
             {/* 3 Kartu Kecil (Bento Items 2, 3, 4) */}
-            <div className="lg:col-span-5 flex flex-col gap-6">
+            <div className="lg:col-span-5 flex flex-col gap-5">
               {bentoProducts.slice(1, 4).map((product, idx) => (
                 <motion.div
                   key={product.id}
                   initial="hidden"
                   whileInView="visible"
-                  viewport={{ once: true, margin: '-60px' }}
+                  viewport={{ once: true, margin: '-50px' }}
                   variants={fadeUpVariant}
-                  transition={{ delay: idx * 0.1 }}
+                  transition={{ delay: shouldReduceMotion ? 0 : idx * 0.1 }}
                   onClick={() => navigate(`/produk/${product.id}`)}
-                  className="group bg-white rounded-3xl border border-[#E8E8ED] p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-5 shadow-none hover:border-[#2E7D4F]/30 hover:shadow-xs transition-all duration-300 cursor-pointer"
+                  className="group bg-white rounded-3xl border border-[#E8E8ED] p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 shadow-xs hover:border-[#2E7D4F]/40 hover:shadow-md transition-all duration-300 cursor-pointer"
                 >
-                  <div className="w-full sm:w-32 h-32 shrink-0 rounded-2xl overflow-hidden bg-[#F5F5F7]">
+                  <div className="w-full sm:w-28 h-28 shrink-0 rounded-2xl overflow-hidden bg-[#F5F5F7]">
                     <SmartImage
                       src={product.gambar}
                       alt={product.nama}
@@ -456,24 +732,27 @@ export const LandingPage: React.FC = () => {
                     />
                   </div>
 
-                  <div className="flex-1 min-w-0 w-full flex flex-col justify-between h-full">
+                  <div className="flex-1 min-w-0 w-full flex flex-col justify-between h-full space-y-2">
                     <div>
-                      <div className="text-[11px] text-[#6E6E73] uppercase tracking-wider font-medium mb-1">
+                      <div className="text-[10px] text-[#6E6E73] uppercase tracking-wider font-bold mb-1">
                         {product.kategori}
                       </div>
-                      <h4 className="text-base font-bold text-[#1D1D1F] group-hover:text-[#2E7D4F] transition-colors line-clamp-1">
+                      <h4 className="text-sm sm:text-base font-extrabold text-[#1D1D1F] group-hover:text-[#2E7D4F] transition-colors line-clamp-1">
                         {product.nama}
                       </h4>
-                      <p className="text-xs text-[#6E6E73] mt-1 line-clamp-1">
-                        Bahan: {product.bahanUtama}
+
+                      {/* Label Kecil "Cocok untuk: ..." */}
+                      <p className="text-[11px] text-[#48484A] mt-1 line-clamp-1">
+                        <strong className="text-[#1E432D] font-semibold">Cocok: </strong>
+                        {getProductUsageLabel(product)}
                       </p>
                     </div>
 
-                    <div className="mt-3 pt-2.5 border-t border-[#E8E8ED]/60 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#1D1D1F] tabular-nums">
+                    <div className="pt-2 border-t border-[#E8E8ED]/70 flex items-center justify-between">
+                      <span className="text-xs sm:text-sm font-extrabold text-[#1D1D1F] tabular-nums">
                         Rp{product.harga.toLocaleString('id-ID')}
                       </span>
-                      <span className="text-[11px] font-semibold text-[#2E7D4F] bg-[#EBF4EE] px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-[#1E432D] bg-[#EBF4EE] px-2.5 py-0.5 rounded-full border border-[#2E7D4F]/20">
                         {product.estimasiKgTerselamatkan} kg selamat
                       </span>
                     </div>
@@ -486,20 +765,28 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          5. CERITA BAHAN: SATU KARTU CERITA BESAR TOMAT BENGKOK LEMBANG
+          5. CERITA BAHAN (GELAP): KARTU CERITA PUTIH MENGAMBANG DENGAN BAYANGAN HALUS
           ========================================================================= */}
-      <section className="py-14 sm:py-24 md:py-32">
-        <Container>
+      <section className="relative py-16 sm:py-24 md:py-32 overflow-hidden text-[#1D1D1F]">
+        {/* SectionBackground: Foto Gelap dengan overlay hitam ±70% */}
+        <SectionBackground
+          imageSrc={BG_CERITA_IMAGE}
+          gradientFallback="bg-gradient-to-b from-[#111A13] via-[#17221A] to-[#0D150F]"
+          overlayClassName="bg-black/80 sm:bg-black/70 backdrop-blur-[2px]"
+          altText="Latar belakang Cerita Bahan"
+        />
+
+        <Container className="relative z-10">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: '-60px' }}
             variants={fadeUpVariant}
-            className="max-w-5xl mx-auto bg-white rounded-3xl sm:rounded-[36px] border border-[#E8E8ED] overflow-hidden p-6 sm:p-10 md:p-12 shadow-none"
+            className="max-w-5xl mx-auto bg-white rounded-3xl sm:rounded-[36px] border border-white/30 overflow-hidden p-6 sm:p-10 md:p-12 shadow-[0_25px_60px_rgba(0,0,0,0.35)]"
           >
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               {/* Foto Bahan Besar */}
-              <div className="lg:col-span-5 rounded-2xl sm:rounded-3xl overflow-hidden bg-[#F5F5F7]">
+              <div className="lg:col-span-5 rounded-2xl sm:rounded-3xl overflow-hidden bg-[#F5F5F7] shadow-xs">
                 <SmartImage
                   src={tomatBengkok.gambar}
                   alt={tomatBengkok.altText || tomatBengkok.nama}
@@ -510,11 +797,11 @@ export const LandingPage: React.FC = () => {
                 />
               </div>
 
-              {/* Cerita & Kutipan */}
-              <div className="lg:col-span-7 space-y-6">
+              {/* Cerita & Kutipan Petani */}
+              <div className="lg:col-span-7 space-y-5">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#2E7D4F] uppercase tracking-wider bg-[#EBF4EE] px-3 py-1 rounded-full">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-[#1E432D] uppercase tracking-wider bg-[#EBF4EE] px-3 py-1 rounded-full border border-[#2E7D4F]/20">
                       <span className="text-sm">{tomatBengkok.emoji}</span>
                       <span>Kisah Bahan Pilihan</span>
                     </span>
@@ -524,26 +811,26 @@ export const LandingPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-[#1D1D1F]">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-[#1D1D1F]">
                     Kisah {tomatBengkok.nama} & Pak Asep
                   </h2>
                 </div>
 
                 {/* Kutipan Pak Asep */}
-                <div className="relative bg-[#F5F5F7] rounded-2xl p-5 sm:p-6 border border-[#E8E8ED]">
-                  <Quote className="w-8 h-8 text-[#2E7D4F]/20 mb-2" />
-                  <p className="text-sm sm:text-base text-[#1D1D1F] italic leading-relaxed">
+                <div className="relative bg-[#FBFBFD] rounded-2xl p-5 sm:p-6 border border-[#E8E8ED]">
+                  <Quote className="w-7 h-7 text-[#2E7D4F]/25 mb-1" />
+                  <p className="text-xs sm:text-sm text-[#3A3A3C] italic leading-relaxed">
                     &ldquo;Dulu, waktu tomat bentuknya bengkok sedikit atau kulitnya retak karena
-                    hujan, tengkulak cuma mau beli sangat murah atau bahkan dibuang. Padahal kalau
-                    dipanggang, air dan gulanya paling manis. Sekarang bersama Ugly2Yummy, hasil
+                    hujan, pembeli borongan cuma mau beli sangat murah atau dibiarkan membusuk. Padahal
+                    kalau dipanggang, air dan gulanya paling manis. Sekarang bersama Ugly2Yummy, hasil
                     kebun kami dihargai dengan layak.&rdquo;
                   </p>
-                  <p className="mt-3 text-xs font-semibold text-[#6E6E73]">
+                  <p className="mt-3 text-xs font-bold text-[#6E6E73]">
                     — {tomatBengkok.petani}, Petani Tomat Lembang
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
                   <div className="text-xs text-[#6E6E73]">
                     Total terselamatkan:{' '}
                     <strong className="text-[#1D1D1F] font-bold">
@@ -553,9 +840,9 @@ export const LandingPage: React.FC = () => {
 
                   <Link
                     to={`/cerita-bahan/${tomatBengkok.id}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2E7D4F] hover:text-[#256640] transition-colors group"
+                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#1E432D] hover:text-[#2E7D4F] transition-colors group"
                   >
-                    <span>Baca ceritanya</span>
+                    <span>Baca cerita selengkapnya</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>
@@ -566,79 +853,98 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          6. DAMPAK: SECTION GELAP DENGAN 3 ANGKA BESAR
+          6. DAMPAK (TERANG): FOTO TERANG, OVERLAY PUTIH ±85%, ANGKA HIJAU TUA
           ========================================================================= */}
-      <section className="bg-[#141414] text-white py-24 sm:py-32">
-        <Container>
+      <section className="relative py-16 sm:py-24 md:py-32 overflow-hidden text-[#1D1D1F]">
+        {/* SectionBackground: Foto Terang dengan overlay putih ±85% */}
+        <SectionBackground
+          imageSrc={BG_DAMPAK_IMAGE}
+          gradientFallback="bg-gradient-to-b from-[#F9F7F2] via-[#F4F7F3] to-[#EAEFEA]"
+          overlayClassName="bg-white/90 sm:bg-white/85 backdrop-blur-[2px]"
+          altText="Latar belakang Dampak"
+        />
+
+        <Container className="relative z-10">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: '-60px' }}
             variants={fadeUpVariant}
-            className="max-w-3xl mx-auto text-center mb-16 sm:mb-20"
+            className="max-w-2xl mx-auto text-center mb-12 sm:mb-16"
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#8FE3AC] block mb-3">
-              DAMPAK NYATA BERSAMA
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF4EE] text-[#1E432D] text-xs font-bold uppercase tracking-wider mb-2 border border-[#2E7D4F]/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D4F]" />
+              Dampak Nyata Bersama
             </span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#1D1D1F]">
               Bukan Sekadar Makanan, Ini Perubahan Nyata.
             </h2>
-            <p className="mt-4 text-base sm:text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
-              Tiap produk yang Anda cicipi langsung mengurangi jejak limbah pangan dan memberdayakan
+            <p className="mt-3 text-xs sm:text-base text-[#48484A] max-w-lg mx-auto leading-relaxed">
+              Tiap produk yang kamu nikmati langsung mengurangi jejak limbah pangan dan memberdayakan
               keluarga petani di pelosok negeri.
             </p>
           </motion.div>
 
-          {/* 3 Angka Besar dari PRD */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 sm:gap-8 max-w-5xl mx-auto text-center divide-y sm:divide-y-0 sm:divide-x divide-white/10">
+          {/* 3 Angka Besar Hijau Tua */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 max-w-4xl mx-auto text-center">
             {/* Stat 1 */}
             <motion.div
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
+              viewport={{ once: true, margin: '-40px' }}
               variants={fadeUpVariant}
-              className="pt-8 sm:pt-0 sm:px-6"
+              className="bg-white/90 rounded-3xl p-6 sm:p-8 border border-[#E8E8ED] shadow-sm"
             >
-              <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tabular-nums tracking-tight">
+              <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#1E432D] tabular-nums tracking-tight">
                 {LANDING_IMPACT.totalKgPangan.toLocaleString('id-ID')}
-                <span className="text-[#8FE3AC] text-2xl sm:text-3xl font-bold ml-1.5">kg</span>
+                <span className="text-[#2E7D4F] text-xl sm:text-2xl font-bold ml-1">kg</span>
               </div>
-              <p className="mt-4 text-base text-white/90 font-medium">Pangan Terselamatkan</p>
-              <p className="text-xs text-white/50 mt-1">Buah & sayur layak konsumsi dari limbah</p>
+              <p className="mt-3 text-sm sm:text-base text-[#1D1D1F] font-bold">
+                Pangan Terselamatkan
+              </p>
+              <p className="text-xs text-[#6E6E73] mt-1">
+                Buah & sayur layak konsumsi dari limbah
+              </p>
             </motion.div>
 
             {/* Stat 2 */}
             <motion.div
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
+              viewport={{ once: true, margin: '-40px' }}
               variants={fadeUpVariant}
-              transition={{ delay: 0.1 }}
-              className="pt-8 sm:pt-0 sm:px-6"
+              transition={{ delay: shouldReduceMotion ? 0 : 0.1 }}
+              className="bg-white/90 rounded-3xl p-6 sm:p-8 border border-[#E8E8ED] shadow-sm"
             >
-              <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tabular-nums tracking-tight">
+              <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#1E432D] tabular-nums tracking-tight">
                 {LANDING_IMPACT.petaniMitra}
               </div>
-              <p className="mt-4 text-base text-white/90 font-medium">Petani Mitra</p>
-              <p className="text-xs text-white/50 mt-1">Didukung dengan skema beli harga adil</p>
+              <p className="mt-3 text-sm sm:text-base text-[#1D1D1F] font-bold">
+                Petani Mitra
+              </p>
+              <p className="text-xs text-[#6E6E73] mt-1">
+                Didukung dengan skema beli harga adil
+              </p>
             </motion.div>
 
             {/* Stat 3 */}
             <motion.div
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
+              viewport={{ once: true, margin: '-40px' }}
               variants={fadeUpVariant}
-              transition={{ delay: 0.2 }}
-              className="pt-8 sm:pt-0 sm:px-6"
+              transition={{ delay: shouldReduceMotion ? 0 : 0.2 }}
+              className="bg-white/90 rounded-3xl p-6 sm:p-8 border border-[#E8E8ED] shadow-sm"
             >
-              <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tabular-nums tracking-tight">
+              <div className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#1E432D] tabular-nums tracking-tight">
                 {LANDING_IMPACT.totalPembeli.toLocaleString('id-ID')}
-                <span className="text-[#8FE3AC] text-2xl sm:text-3xl font-bold ml-1.5">+</span>
+                <span className="text-[#2E7D4F] text-xl sm:text-2xl font-bold ml-1">+</span>
               </div>
-              <p className="mt-4 text-base text-white/90 font-medium">Pembeli Peduli</p>
-              <p className="text-xs text-white/50 mt-1">
-                Menikmati kelezatan rasa ramah lingkungan
+              <p className="mt-3 text-sm sm:text-base text-[#1D1D1F] font-bold">
+                Pembeli Peduli
+              </p>
+              <p className="text-xs text-[#6E6E73] mt-1">
+                Menikmati kelezatan ramah lingkungan
               </p>
             </motion.div>
           </div>
@@ -646,43 +952,70 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          7. PENUTUP / AJAKAN
+          7. PENUTUP (GELAP): FOTO GELAP, OVERLAY HIJAU TUA ±75%, KARTU AJAKAN PUTIH
           ========================================================================= */}
-      <section className="py-24 sm:py-32 md:py-36">
-        <Container size="narrow">
+      <section className="relative py-16 sm:py-24 md:py-32 overflow-hidden text-[#1D1D1F]">
+        {/* SectionBackground: Foto Gelap dengan overlay hijau tua ±75% */}
+        <SectionBackground
+          imageSrc={BG_PENUTUP_IMAGE}
+          gradientFallback="bg-gradient-to-b from-[#142E1E] via-[#0E2316] to-[#09170E]"
+          overlayClassName="bg-[#0F2618]/85 sm:bg-[#0F2618]/75 backdrop-blur-[2px]"
+          altText="Latar belakang Ajakan Penutup"
+        />
+
+        <Container size="narrow" className="relative z-10">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: '-60px' }}
             variants={fadeUpVariant}
-            className="bg-white rounded-3xl sm:rounded-[36px] border border-[#E8E8ED] p-10 sm:p-16 text-center shadow-none"
+            className="bg-white rounded-3xl sm:rounded-[36px] border border-white/20 p-8 sm:p-14 md:p-16 text-center shadow-2xl"
           >
-            <div className="w-14 h-14 rounded-full bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="w-7 h-7" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center mx-auto mb-5 shadow-xs">
+              <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
 
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#1D1D1F]">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-[#1D1D1F]">
               Siap mencicipi yang tak sempurna?
             </h2>
 
-            <p className="mt-4 text-base sm:text-lg text-[#6E6E73] max-w-md mx-auto leading-relaxed">
-              Masuk sebagai pembeli untuk menjelajahi katalog, menyimpan keranjang, dan memantau
-              langsung dampak kilogram pangan yang Anda selamatkan.
+            <p className="mt-3 sm:mt-4 text-xs sm:text-base text-[#48484A] max-w-md mx-auto leading-relaxed">
+              Kamu bisa langsung berbelanja produk lezat ini tanpa perlu mendaftar, atau masuk ke akun demo untuk menyimpan keranjang dan memantau riwayat pesananmu.
             </p>
 
-            <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-4">
-              <Button
-                onClick={handleBuyerCta}
-                variant="primary"
-                size="lg"
-                icon={<ArrowRight className="w-4 h-4" />}
-                iconPosition="right"
-              >
-                Masuk sebagai Pembeli
-              </Button>
-              <Button to="/produk" variant="secondary" size="lg">
-                Jelajahi Dulu
-              </Button>
+            <div className="mt-7 sm:mt-9 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+              {isLoggedIn ? (
+                <Button
+                  to="/produk"
+                  variant="primary"
+                  size="lg"
+                  icon={<ArrowRight className="w-4 h-4" />}
+                  iconPosition="right"
+                  className="bg-[#2E7D4F] hover:bg-[#256640] text-white shadow-md font-semibold text-xs sm:text-sm"
+                >
+                  Belanja Sekarang
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleBuyerCta}
+                    variant="primary"
+                    size="lg"
+                    icon={<ArrowRight className="w-4 h-4" />}
+                    iconPosition="right"
+                    className="bg-[#2E7D4F] hover:bg-[#256640] text-white shadow-md font-semibold text-xs sm:text-sm"
+                  >
+                    Masuk sebagai Pembeli
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={handleGuestBuy}
+                    className="inline-flex items-center justify-center font-semibold transition-all duration-200 rounded-full text-xs sm:text-sm px-6 py-3 min-h-[46px] sm:min-h-[50px] bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-[#E8E8ED] active:scale-[0.98] cursor-pointer"
+                  >
+                    Beli Tanpa Login
+                  </button>
+                </>
+              )}
             </div>
           </motion.div>
         </Container>

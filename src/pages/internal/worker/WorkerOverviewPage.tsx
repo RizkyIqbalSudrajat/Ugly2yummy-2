@@ -48,7 +48,7 @@ export const WorkerOverviewPage: React.FC = () => {
     switch (priority) {
       case 'Tinggi':
         return 'bg-red-50 text-red-700 border-red-200/80';
-      case 'Sedang':
+      case 'Normal':
         return 'bg-amber-50 text-amber-700 border-amber-200/80';
       default:
         return 'bg-[#F5F5F7] text-[#6E6E73] border-[#E8E8ED]';
@@ -252,8 +252,8 @@ export const WorkerOverviewPage: React.FC = () => {
 
                   <span
                     className={`text-[10px] font-medium px-2 py-0.5 rounded-md shrink-0 ${
-                      task.status === 'Sedang Dikerjakan'
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                      task.status === 'Dalam Proses'
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200/60'
                         : 'bg-[#F5F5F7] text-[#6E6E73]'
                     }`}
                   >

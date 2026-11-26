@@ -8,6 +8,7 @@ import {
   AdminOrder,
   OrderStatus,
   AdminShipping,
+  ShippingCourier,
   ShippingStatus,
   AdminProduct,
   AdminReview,
@@ -75,6 +76,12 @@ export interface AdminDataContextType {
     id: string,
     status: ShippingStatus,
     catatan?: string
+  ) => void;
+  updateShippingResi: (
+    id: string,
+    kurir: ShippingCourier,
+    nomorResi: string,
+    layanan?: string
   ) => void;
 
   // Produk Admin
@@ -289,8 +296,59 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               ...shp.riwayatStatus,
               {
                 status,
-                waktu: '14 Okt 2026, baru saja',
+                waktu: new Date().toLocaleDateString('id-ID', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }) + ' WIB',
                 catatan: catatan || `Status pengiriman diperbarui menjadi ${status}.`,
+              },
+            ],
+          };
+        }
+        return shp;
+      })
+    );
+  };
+
+  const updateShippingResi: AdminDataContextType['updateShippingResi'] = (
+    id,
+    kurir,
+    nomorResi,
+    layanan
+  ) => {
+    const formattedTime =
+      new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }) + ' WIB';
+
+    setShippings((prev) =>
+      prev.map((shp) => {
+        if (shp.id === id) {
+          // Update order's resiPengiriman as well
+          setOrders((ordPrev) =>
+            ordPrev.map((ord) =>
+              ord.id === shp.pesananId ? { ...ord, resiPengiriman: nomorResi } : ord
+            )
+          );
+
+          return {
+            ...shp,
+            kurir,
+            nomorResi,
+            layanan: layanan || shp.layanan,
+            riwayatStatus: [
+              ...shp.riwayatStatus,
+              {
+                status: shp.status,
+                waktu: formattedTime,
+                catatan: `Nomor resi & kurir diperbarui: ${kurir} (${layanan || shp.layanan}) - ${nomorResi}.`,
               },
             ],
           };
@@ -449,6 +507,7 @@ export const AdminDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     shippings,
     addShipping,
     updateShippingStatus,
+    updateShippingResi,
     products,
     addProduct,
     updateProduct,

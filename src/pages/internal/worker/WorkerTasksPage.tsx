@@ -19,7 +19,7 @@ import {
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
   Tinggi: 1,
-  Sedang: 2,
+  Normal: 2,
   Rendah: 3,
 };
 
@@ -27,7 +27,7 @@ export const WorkerTasksPage: React.FC = () => {
   const { tasks, updateTaskStatus } = useWorkerData();
 
   // Mobile Active Tab
-  const [mobileTab, setMobileTab] = useState<TaskStatus>('Belum Dikerjakan');
+  const [mobileTab, setMobileTab] = useState<TaskStatus>('Belum Mulai');
 
   // Filters
   const [priorityFilter, setPriorityFilter] = useState<'Semua' | TaskPriority>('Semua');
@@ -64,12 +64,12 @@ export const WorkerTasksPage: React.FC = () => {
   }, [tasks, priorityFilter, searchQuery, sortBy]);
 
   // Group by Column
-  const belumDikerjakan = useMemo(
-    () => filteredTasks.filter((t) => t.status === 'Belum Dikerjakan'),
+  const belumMulai = useMemo(
+    () => filteredTasks.filter((t) => t.status === 'Belum Mulai'),
     [filteredTasks]
   );
-  const sedangDikerjakan = useMemo(
-    () => filteredTasks.filter((t) => t.status === 'Sedang Dikerjakan'),
+  const dalamProses = useMemo(
+    () => filteredTasks.filter((t) => t.status === 'Dalam Proses'),
     [filteredTasks]
   );
   const selesai = useMemo(
@@ -81,7 +81,7 @@ export const WorkerTasksPage: React.FC = () => {
     switch (priority) {
       case 'Tinggi':
         return 'bg-red-50 text-red-700 border-red-200/80';
-      case 'Sedang':
+      case 'Normal':
         return 'bg-amber-50 text-amber-700 border-amber-200/80';
       default:
         return 'bg-[#F5F5F7] text-[#6E6E73] border-[#E8E8ED]';
@@ -167,33 +167,33 @@ export const WorkerTasksPage: React.FC = () => {
           <span className="text-[10px] font-bold text-[#6E6E73] uppercase tracking-wider block mb-1.5">
             Ubah Status Tugas:
           </span>
-          <div className="p-0.5 bg-[#F5F5F7] rounded-xl flex border border-[#E8E8ED] text-[11px]">
+          <div className="p-0.5 bg-[#F5F5F7] rounded-xl flex border border-[#E8E8ED] text-[10px] sm:text-[11px]">
             <button
               type="button"
-              onClick={() => handleStatusChange(task.id, 'Belum Dikerjakan')}
-              className={`flex-1 py-1 text-center rounded-lg font-semibold transition-all cursor-pointer ${
-                task.status === 'Belum Dikerjakan'
+              onClick={() => handleStatusChange(task.id, 'Belum Mulai')}
+              className={`flex-1 py-1 px-1 text-center rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                task.status === 'Belum Mulai'
                   ? 'bg-white text-[#1D1D1F] shadow-2xs'
                   : 'text-[#6E6E73] hover:text-[#1D1D1F]'
               }`}
             >
-              Belum
+              Belum Mulai
             </button>
             <button
               type="button"
-              onClick={() => handleStatusChange(task.id, 'Sedang Dikerjakan')}
-              className={`flex-1 py-1 text-center rounded-lg font-semibold transition-all cursor-pointer ${
-                task.status === 'Sedang Dikerjakan'
-                  ? 'bg-white text-blue-700 shadow-2xs'
+              onClick={() => handleStatusChange(task.id, 'Dalam Proses')}
+              className={`flex-1 py-1 px-1 text-center rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                task.status === 'Dalam Proses'
+                  ? 'bg-white text-amber-700 shadow-2xs'
                   : 'text-[#6E6E73] hover:text-[#1D1D1F]'
               }`}
             >
-              Sedang
+              Dalam Proses
             </button>
             <button
               type="button"
               onClick={() => handleStatusChange(task.id, 'Selesai')}
-              className={`flex-1 py-1 text-center rounded-lg font-semibold transition-all cursor-pointer ${
+              className={`flex-1 py-1 px-1 text-center rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 task.status === 'Selesai'
                   ? 'bg-white text-[#2E7D4F] shadow-2xs'
                   : 'text-[#6E6E73] hover:text-[#1D1D1F]'
@@ -242,7 +242,7 @@ export const WorkerTasksPage: React.FC = () => {
             Total: <strong className="text-[#1D1D1F]">{tasks.length} Tugas</strong>
           </span>
           <span className="px-3 py-1.5 rounded-full bg-[#EBF4EE] border border-[#2E7D4F]/20 text-[#2E7D4F] font-semibold">
-            {belumDikerjakan.length + sedangDikerjakan.length} Belum Selesai
+            {belumMulai.length + dalamProses.length} Belum Selesai
           </span>
         </div>
       </div>
@@ -251,7 +251,7 @@ export const WorkerTasksPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2 sm:p-2.5 rounded-2xl border border-[#E8E8ED]">
         {/* Filter Prioritas */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-          {(['Semua', 'Tinggi', 'Sedang', 'Rendah'] as const).map((pri) => (
+          {(['Semua', 'Tinggi', 'Normal', 'Rendah'] as const).map((pri) => (
             <button
               key={pri}
               type="button"
@@ -262,7 +262,7 @@ export const WorkerTasksPage: React.FC = () => {
                   : 'text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
               }`}
             >
-              {pri === 'Semua' ? 'Semua Prioritas' : pri}
+              {pri}
             </button>
           ))}
         </div>
@@ -301,8 +301,8 @@ export const WorkerTasksPage: React.FC = () => {
         <div className="flex items-center p-1 bg-[#F5F5F7] rounded-2xl border border-[#E8E8ED]">
           {(
             [
-              { label: 'Belum Dikerjakan', list: belumDikerjakan },
-              { label: 'Sedang Dikerjakan', list: sedangDikerjakan },
+              { label: 'Belum Mulai', list: belumMulai },
+              { label: 'Dalam Proses', list: dalamProses },
               { label: 'Selesai', list: selesai },
             ] as const
           ).map((col) => (
@@ -310,13 +310,13 @@ export const WorkerTasksPage: React.FC = () => {
               key={col.label}
               type="button"
               onClick={() => setMobileTab(col.label)}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-2 px-1 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
                 mobileTab === col.label
                   ? 'bg-white text-[#1D1D1F] shadow-xs'
                   : 'text-[#6E6E73] hover:text-[#1D1D1F]'
               }`}
             >
-              <span>{col.label.split(' ')[0]}</span>
+              <span>{col.label}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.2 rounded-md ${
                   mobileTab === col.label
@@ -332,22 +332,22 @@ export const WorkerTasksPage: React.FC = () => {
 
         {/* Task Cards in Active Mobile Tab */}
         <div className="space-y-3">
-          {mobileTab === 'Belum Dikerjakan' &&
-            (belumDikerjakan.length === 0 ? (
+          {mobileTab === 'Belum Mulai' &&
+            (belumMulai.length === 0 ? (
               <div className="bg-white rounded-2xl border border-[#E8E8ED] p-8 text-center text-xs text-[#6E6E73]">
-                Tidak ada tugas di kolom Belum Dikerjakan.
+                Tidak ada tugas di kolom Belum Mulai.
               </div>
             ) : (
-              belumDikerjakan.map(renderTaskCard)
+              belumMulai.map(renderTaskCard)
             ))}
 
-          {mobileTab === 'Sedang Dikerjakan' &&
-            (sedangDikerjakan.length === 0 ? (
+          {mobileTab === 'Dalam Proses' &&
+            (dalamProses.length === 0 ? (
               <div className="bg-white rounded-2xl border border-[#E8E8ED] p-8 text-center text-xs text-[#6E6E73]">
-                Tidak ada tugas yang sedang berlangsung.
+                Tidak ada tugas yang sedang dalam proses.
               </div>
             ) : (
-              sedangDikerjakan.map(renderTaskCard)
+              dalamProses.map(renderTaskCard)
             ))}
 
           {mobileTab === 'Selesai' &&
@@ -365,52 +365,52 @@ export const WorkerTasksPage: React.FC = () => {
           DESKTOP: PAPAN KANBAN 3 KOLOM
           ========================================================================= */}
       <div className="hidden lg:grid grid-cols-3 gap-5 items-start">
-        {/* Kolom 1: Belum Dikerjakan */}
+        {/* Kolom 1: Belum Mulai */}
+        <div className="bg-[#F5F5F7]/80 rounded-3xl p-4 border border-[#E8E8ED] space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-[#E8E8ED]">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+              <h2 className="text-xs font-bold text-[#1D1D1F] uppercase tracking-wider">
+                Belum Mulai
+              </h2>
+            </div>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white text-[#1D1D1F] border border-[#E8E8ED]">
+              {belumMulai.length}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {belumMulai.length === 0 ? (
+              <div className="py-12 text-center text-xs text-[#6E6E73]">
+                Tidak ada tugas Belum Mulai.
+              </div>
+            ) : (
+              belumMulai.map(renderTaskCard)
+            )}
+          </div>
+        </div>
+
+        {/* Kolom 2: Dalam Proses */}
         <div className="bg-[#F5F5F7]/80 rounded-3xl p-4 border border-[#E8E8ED] space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-[#E8E8ED]">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
               <h2 className="text-xs font-bold text-[#1D1D1F] uppercase tracking-wider">
-                Belum Dikerjakan
+                Dalam Proses
               </h2>
             </div>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white text-[#1D1D1F] border border-[#E8E8ED]">
-              {belumDikerjakan.length}
+              {dalamProses.length}
             </span>
           </div>
 
           <div className="space-y-3">
-            {belumDikerjakan.length === 0 ? (
+            {dalamProses.length === 0 ? (
               <div className="py-12 text-center text-xs text-[#6E6E73]">
-                Tidak ada tugas pending.
+                Tidak ada tugas dalam proses.
               </div>
             ) : (
-              belumDikerjakan.map(renderTaskCard)
-            )}
-          </div>
-        </div>
-
-        {/* Kolom 2: Sedang Dikerjakan */}
-        <div className="bg-[#F5F5F7]/80 rounded-3xl p-4 border border-[#E8E8ED] space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-[#E8E8ED]">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-              <h2 className="text-xs font-bold text-[#1D1D1F] uppercase tracking-wider">
-                Sedang Dikerjakan
-              </h2>
-            </div>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white text-[#1D1D1F] border border-[#E8E8ED]">
-              {sedangDikerjakan.length}
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {sedangDikerjakan.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#6E6E73]">
-                Tidak ada tugas aktif di dapur.
-              </div>
-            ) : (
-              sedangDikerjakan.map(renderTaskCard)
+              dalamProses.map(renderTaskCard)
             )}
           </div>
         </div>
@@ -432,7 +432,7 @@ export const WorkerTasksPage: React.FC = () => {
           <div className="space-y-3">
             {selesai.length === 0 ? (
               <div className="py-12 text-center text-xs text-[#6E6E73]">
-                Belum ada tugas terselesaikan.
+                Belum ada tugas Selesai.
               </div>
             ) : (
               selesai.map(renderTaskCard)

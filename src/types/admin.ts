@@ -90,7 +90,7 @@ export interface AdminOrder {
   resiPengiriman?: string;
 }
 
-export type ShippingCourier = 'JNE' | 'J&T' | 'SiCepat' | 'GoSend';
+export type ShippingCourier = 'J&E' | 'JNE' | 'SiCepat' | 'Anteraja' | 'GoSend' | 'J&T';
 export type ShippingStatus = 'Menunggu Kurir' | 'Dalam Perjalanan' | 'Terkirim';
 
 export interface ShippingHistoryLog {

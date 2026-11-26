@@ -11,20 +11,17 @@ import { AdminStatusBadge } from '../../../components/internal/AdminStatusBadge'
 import {
   Truck,
   Search,
-  Filter,
   Copy,
   Check,
   CheckCircle2,
-  Package,
   Calendar,
   Clock,
   MapPin,
-  ChevronRight,
   Plus,
   X,
   ExternalLink,
-  ShieldCheck,
-  Send,
+  Edit2,
+  Package,
 } from 'lucide-react';
 
 const SHIPPING_TABS: ('Semua' | ShippingStatus)[] = [
@@ -34,24 +31,33 @@ const SHIPPING_TABS: ('Semua' | ShippingStatus)[] = [
   'Terkirim',
 ];
 
-const COURIER_OPTIONS: ShippingCourier[] = ['JNE', 'SiCepat', 'J&T', 'GoSend'];
+const COURIER_OPTIONS: ShippingCourier[] = ['J&E', 'JNE', 'SiCepat', 'Anteraja', 'GoSend'];
 const SERVICE_OPTIONS = ['Reguler', 'NextDay', 'Instant', 'SameDay', 'Kargo'];
 
 export const AdminShippingPage: React.FC = () => {
-  const { shippings, addShipping, updateShippingStatus, orders, updateOrderStatus, addNotification } = useAdminData();
+  const {
+    shippings,
+    addShipping,
+    updateShippingStatus,
+    updateShippingResi,
+    orders,
+    updateOrderStatus,
+    addNotification,
+  } = useAdminData();
   const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<'Semua' | ShippingStatus>('Semua');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modal Atur Pengiriman
+  // Modal Atur / Ubah Pengiriman & Resi
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [editingShippingId, setEditingShippingId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string>('');
-  const [selectedCourier, setSelectedCourier] = useState<ShippingCourier>('JNE');
+  const [selectedCourier, setSelectedCourier] = useState<ShippingCourier>('J&E');
   const [selectedService, setSelectedService] = useState<string>('Reguler');
   const [resiInput, setResiInput] = useState<string>('');
 
-  // Riwayat Status Modal / Drawer
+  // Riwayat Status Modal
   const [selectedShippingDetail, setSelectedShippingDetail] = useState<AdminShipping | null>(null);
 
   // Copy feedbacks
@@ -69,16 +75,14 @@ export const AdminShippingPage: React.FC = () => {
   useEffect(() => {
     const pId = searchParams.get('pesananId');
     if (pId) {
-      setSelectedOrderId(pId);
-      const matchedOrder = orders.find((o) => o.id === pId);
-      if (matchedOrder?.resiPengiriman) {
-        setResiInput(matchedOrder.resiPengiriman);
+      const existing = shippings.find((s) => s.pesananId === pId);
+      if (existing) {
+        openEditResiModal(existing);
       } else {
-        setResiInput(`JNE${Date.now().toString().slice(-9)}`);
+        openNewResiModal(pId);
       }
-      setShowConfigModal(true);
     }
-  }, [searchParams, orders]);
+  }, [searchParams, shippings]);
 
   // Orders that are Dikemas (ready for shipping configuration)
   const readyOrders = useMemo(() => {
@@ -122,6 +126,28 @@ export const AdminShippingPage: React.FC = () => {
     });
   }, [shippings, activeTab, searchQuery]);
 
+  // Open modal for new shipping
+  const openNewResiModal = (orderId?: string) => {
+    const chosenOrderId = orderId || readyOrders[0]?.id || '';
+    setEditingShippingId(null);
+    setSelectedOrderId(chosenOrderId);
+    setSelectedCourier('J&E');
+    setSelectedService('Reguler');
+    const matched = orders.find((o) => o.id === chosenOrderId);
+    setResiInput(matched?.resiPengiriman || `JE${Date.now().toString().slice(-9)}`);
+    setShowConfigModal(true);
+  };
+
+  // Open modal for editing resi
+  const openEditResiModal = (shipping: AdminShipping) => {
+    setEditingShippingId(shipping.id);
+    setSelectedOrderId(shipping.pesananId);
+    setSelectedCourier(shipping.kurir);
+    setSelectedService(shipping.layanan || 'Reguler');
+    setResiInput(shipping.nomorResi);
+    setShowConfigModal(true);
+  };
+
   // Copy full address helper
   const handleCopyAddress = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -137,7 +163,7 @@ export const AdminShippingPage: React.FC = () => {
     showToast(`Nomor resi ${resi} disalin!`);
   };
 
-  // Handle Save Atur Pengiriman
+  // Handle Save Atur Pengiriman / Ubah Resi
   const handleSaveShipping = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrderId || !resiInput.trim()) {
@@ -148,34 +174,55 @@ export const AdminShippingPage: React.FC = () => {
     const ord = orders.find((o) => o.id === selectedOrderId);
     if (!ord) return;
 
-    // Check if shipping already exists for this order
-    const existing = shippings.find((s) => s.pesananId === selectedOrderId);
-    if (existing) {
-      updateShippingStatus(existing.id, 'Dalam Perjalanan', `Nomor resi ${resiInput.trim()} diperbarui.`);
-      updateOrderStatus(ord.id, ord.status, resiInput.trim());
-      showToast(`Pengiriman untuk ${ord.id} berhasil diperbarui!`);
-    } else {
-      addShipping({
-        pesananId: ord.id,
-        namaPembeli: ord.pembeli,
-        kurir: selectedCourier,
-        layanan: selectedService,
-        nomorResi: resiInput.trim(),
-        status: 'Menunggu Kurir',
-        tanggalKirim: '14 Okt 2026',
-        tujuanKota: ord.alamatLengkap.split(',')[1]?.trim() || 'Jakarta',
-      });
-
-      updateOrderStatus(ord.id, ord.status, resiInput.trim());
-
+    if (editingShippingId) {
+      // Update existing shipping
+      updateShippingResi(
+        editingShippingId,
+        selectedCourier,
+        resiInput.trim(),
+        selectedService
+      );
       addNotification({
         tipe: 'Pengiriman',
-        judul: `Resi Diterbitkan: ${ord.id}`,
+        judul: `Resi Diperbarui: ${ord.id}`,
         isi: `${selectedCourier} (${selectedService}) - Resi: ${resiInput.trim()} untuk ${ord.pembeli}.`,
         linkTujuan: '/internal/admin/pengiriman',
       });
+      showToast(`Nomor resi & kurir untuk pesanan ${ord.id} berhasil diperbarui!`);
+    } else {
+      // Check if shipping already exists for this order
+      const existing = shippings.find((s) => s.pesananId === selectedOrderId);
+      if (existing) {
+        updateShippingResi(
+          existing.id,
+          selectedCourier,
+          resiInput.trim(),
+          selectedService
+        );
+        showToast(`Pengiriman untuk ${ord.id} berhasil diperbarui!`);
+      } else {
+        addShipping({
+          pesananId: ord.id,
+          namaPembeli: ord.pembeli,
+          kurir: selectedCourier,
+          layanan: selectedService,
+          nomorResi: resiInput.trim(),
+          status: 'Menunggu Kurir',
+          tanggalKirim: '14 Okt 2026',
+          tujuanKota: ord.alamatLengkap.split(',')[1]?.trim() || 'Jakarta',
+        });
 
-      showToast(`Pengiriman & nomor resi untuk ${ord.id} berhasil disimpan!`);
+        updateOrderStatus(ord.id, ord.status, resiInput.trim());
+
+        addNotification({
+          tipe: 'Pengiriman',
+          judul: `Resi Diterbitkan: ${ord.id}`,
+          isi: `${selectedCourier} (${selectedService}) - Resi: ${resiInput.trim()} untuk ${ord.pembeli}.`,
+          linkTujuan: '/internal/admin/pengiriman',
+        });
+
+        showToast(`Pengiriman & nomor resi untuk ${ord.id} berhasil disimpan!`);
+      }
     }
 
     setShowConfigModal(false);
@@ -190,9 +237,9 @@ export const AdminShippingPage: React.FC = () => {
       shipping.id,
       nextStatus,
       nextStatus === 'Terkirim'
-        ? `Paket telah diterima oleh ${shipping.namaPembeli}. Transaksi diselesaikan otomatis.`
+        ? `Paket telah diterima oleh ${shipping.namaPembeli}. Transaksi pesanan ${shipping.pesananId} otomatis diselesaikan.`
         : nextStatus === 'Dalam Perjalanan'
-        ? `Paket di-pickup oleh kurir ${shipping.kurir} dan sedang menuju kota tujuan.`
+        ? `Paket di-pickup oleh kurir ${shipping.kurir} dan sedang menuju alamat tujuan.`
         : undefined
     );
 
@@ -233,24 +280,20 @@ export const AdminShippingPage: React.FC = () => {
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1D1D1F]">
-            Manajemen Pengiriman Paket
+            Manajemen Pengiriman
           </h1>
           <p className="text-xs sm:text-sm text-[#6E6E73] mt-1 max-w-xl">
-            Kelola penyerahan paket produk olahan ke kurir (JNE, SiCepat, J&T, GoSend), input nomor resi pengiriman, pantau transit, dan sinkronisasi otomatis status pesanan selesai.
+            Kelola penyerahan paket produk olahan ke kurir (J&E, JNE, SiCepat, Anteraja, GoSend), input/ubah nomor resi pengiriman, pantau progres status (Menunggu Kurir &rarr; Dalam Perjalanan &rarr; Terkirim), dan sinkronisasi otomatis status pesanan menjadi Selesai.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => {
-            setSelectedOrderId(readyOrders[0]?.id || '');
-            setResiInput(`JNE${Date.now().toString().slice(-9)}`);
-            setShowConfigModal(true);
-          }}
+          onClick={() => openNewResiModal()}
           className="px-4 py-2.5 rounded-full bg-[#2E7D4F] text-white text-xs font-semibold hover:bg-[#256640] transition-colors shadow-xs cursor-pointer inline-flex items-center gap-2 self-start sm:self-auto shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span>Atur Pengiriman Baru</span>
+          <span>Input / Atur Resi Baru</span>
         </button>
       </div>
 
@@ -322,132 +365,244 @@ export const AdminShippingPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-[#E8E8ED] overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-[#E8E8ED] bg-[#FBFBFD] text-[#6E6E73] font-semibold">
-                  <th className="py-3.5 px-4">ID Pesanan</th>
-                  <th className="py-3.5 px-4">Pembeli & Tujuan</th>
-                  <th className="py-3.5 px-4">Ekspedisi & Layanan</th>
-                  <th className="py-3.5 px-4">Nomor Resi</th>
-                  <th className="py-3.5 px-4">Tanggal Kirim</th>
-                  <th className="py-3.5 px-4 text-center">Status</th>
-                  <th className="py-3.5 px-4 text-right">Perbarui Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E8E8ED]/70">
-                {filteredShippings.map((shp) => {
-                  const isCopied = copiedResiId === shp.id;
+        <div className="space-y-4">
+          {/* DESKTOP TABLE */}
+          <div className="hidden md:block bg-white rounded-3xl border border-[#E8E8ED] overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-[#E8E8ED] bg-[#FBFBFD] text-[#6E6E73] font-semibold">
+                    <th className="py-3.5 px-4">ID Pesanan</th>
+                    <th className="py-3.5 px-4">Pembeli & Alamat Singkat</th>
+                    <th className="py-3.5 px-4">Kurir</th>
+                    <th className="py-3.5 px-4">No. Resi</th>
+                    <th className="py-3.5 px-4 text-center">Status</th>
+                    <th className="py-3.5 px-4 text-right">Alur Status & Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E8E8ED]/70">
+                  {filteredShippings.map((shp) => {
+                    const isCopied = copiedResiId === shp.id;
 
-                  return (
-                    <tr key={shp.id} className="hover:bg-[#F5FBF7]/50 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <Link
-                          to={`/internal/admin/pesanan/${shp.pesananId}`}
-                          className="font-mono font-semibold text-[#1D1D1F] hover:text-[#2E7D4F] hover:underline inline-flex items-center gap-1"
-                        >
-                          {shp.pesananId}
-                          <ExternalLink className="w-3 h-3 text-[#8E8E93]" />
-                        </Link>
-                      </td>
+                    return (
+                      <tr key={shp.id} className="hover:bg-[#F5FBF7]/50 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <Link
+                            to={`/internal/admin/pesanan/${shp.pesananId}`}
+                            className="font-mono font-semibold text-[#1D1D1F] hover:text-[#2E7D4F] hover:underline inline-flex items-center gap-1"
+                          >
+                            {shp.pesananId}
+                            <ExternalLink className="w-3 h-3 text-[#8E8E93]" />
+                          </Link>
+                        </td>
 
-                      <td className="py-3.5 px-4">
-                        <p className="font-bold text-[#1D1D1F]">{shp.namaPembeli}</p>
-                        <p className="text-[11px] text-[#6E6E73] flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-[#8E8E93]" />
-                          {shp.tujuanKota}
-                        </p>
-                      </td>
+                        <td className="py-3.5 px-4">
+                          <p className="font-bold text-[#1D1D1F]">{shp.namaPembeli}</p>
+                          <p className="text-[11px] text-[#6E6E73] flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-[#8E8E93]" />
+                            {shp.tujuanKota}
+                          </p>
+                        </td>
 
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-[#1D1D1F]">{shp.kurir}</span>
-                        <span className="text-[11px] text-[#6E6E73] ml-1.5 bg-[#F5F5F7] px-2 py-0.5 rounded-full">
-                          {shp.layanan}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-[#1D1D1F] bg-[#F5F5F7] px-2 py-1 rounded-lg">
-                            {shp.nomorResi}
+                        <td className="py-3.5 px-4">
+                          <span className="font-bold text-[#1D1D1F]">{shp.kurir}</span>
+                          <span className="text-[11px] text-[#6E6E73] ml-1.5 bg-[#F5F5F7] px-2 py-0.5 rounded-full">
+                            {shp.layanan}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyResi(shp.nomorResi, shp.id)}
-                            className="p-1 rounded-lg hover:bg-[#E8E8ED] text-[#6E6E73] cursor-pointer"
-                            title="Salin nomor resi"
-                          >
-                            {isCopied ? (
-                              <Check className="w-3.5 h-3.5 text-[#2E7D4F]" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="py-3.5 px-4 text-[#6E6E73]">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-[#8E8E93]" />
-                          {shp.tanggalKirim}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center">
-                        <AdminStatusBadge status={shp.status} size="sm" />
-                      </td>
-
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {shp.status === 'Menunggu Kurir' && (
-                            <button
-                              type="button"
-                              onClick={() => handleStatusTransition(shp, 'Dalam Perjalanan')}
-                              className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
-                            >
-                              Pickup Kurir
-                            </button>
-                          )}
-
-                          {shp.status === 'Dalam Perjalanan' && (
-                            <button
-                              type="button"
-                              onClick={() => handleStatusTransition(shp, 'Terkirim')}
-                              className="px-3 py-1 rounded-full text-xs font-semibold bg-[#2E7D4F] text-white hover:bg-[#256640] transition-colors shadow-xs cursor-pointer inline-flex items-center gap-1"
-                            >
-                              <Check className="w-3 h-3" />
-                              Tandai Terkirim
-                            </button>
-                          )}
-
-                          {shp.status === 'Terkirim' && (
-                            <span className="text-[11px] text-[#2E7D4F] font-semibold flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Selesai
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-[#1D1D1F] bg-[#F5F5F7] px-2 py-1 rounded-lg">
+                              {shp.nomorResi}
                             </span>
-                          )}
+                            <button
+                              type="button"
+                              onClick={() => handleCopyResi(shp.nomorResi, shp.id)}
+                              className="p-1 rounded-lg hover:bg-[#E8E8ED] text-[#6E6E73] cursor-pointer"
+                              title="Salin nomor resi"
+                            >
+                              {isCopied ? (
+                                <Check className="w-3.5 h-3.5 text-[#2E7D4F]" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditResiModal(shp)}
+                              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-white border border-[#E8E8ED] hover:bg-[#F5F5F7] text-[#1D1D1F] inline-flex items-center gap-1 cursor-pointer"
+                              title="Ubah Resi"
+                            >
+                              <Edit2 className="w-3 h-3 text-[#8E8E93]" />
+                              <span>Ubah Resi</span>
+                            </button>
+                          </div>
+                        </td>
 
-                          <button
-                            type="button"
-                            onClick={() => setSelectedShippingDetail(shp)}
-                            className="p-1 text-[#8E8E93] hover:text-[#1D1D1F] rounded-lg ml-1"
-                            title="Lihat riwayat status"
-                          >
-                            <Clock className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td className="py-3.5 px-4 text-center">
+                          <AdminStatusBadge status={shp.status} size="sm" />
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {shp.status === 'Menunggu Kurir' && (
+                              <button
+                                type="button"
+                                onClick={() => handleStatusTransition(shp, 'Dalam Perjalanan')}
+                                className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+                              >
+                                Menunggu Kurir &rarr; Pickup
+                              </button>
+                            )}
+
+                            {shp.status === 'Dalam Perjalanan' && (
+                              <button
+                                type="button"
+                                onClick={() => handleStatusTransition(shp, 'Terkirim')}
+                                className="px-3 py-1 rounded-full text-xs font-semibold bg-[#2E7D4F] text-white hover:bg-[#256640] transition-colors shadow-xs cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <Check className="w-3 h-3" />
+                                Tandai Terkirim
+                              </button>
+                            )}
+
+                            {shp.status === 'Terkirim' && (
+                              <span className="text-[11px] text-[#2E7D4F] font-semibold flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EBF4EE]">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Selesai
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedShippingDetail(shp)}
+                              className="p-1.5 text-[#8E8E93] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-lg ml-1 cursor-pointer"
+                              title="Lihat riwayat status pengiriman"
+                            >
+                              <Clock className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* MOBILE CARDS */}
+          <div className="md:hidden space-y-3">
+            {filteredShippings.map((shp) => {
+              const isCopied = copiedResiId === shp.id;
+
+              return (
+                <div
+                  key={shp.id}
+                  className="bg-white rounded-2xl border border-[#E8E8ED] p-4 shadow-xs space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <Link
+                      to={`/internal/admin/pesanan/${shp.pesananId}`}
+                      className="font-mono font-bold text-xs text-[#1D1D1F] hover:text-[#2E7D4F] inline-flex items-center gap-1"
+                    >
+                      <span>{shp.pesananId}</span>
+                      <ExternalLink className="w-3 h-3 text-[#8E8E93]" />
+                    </Link>
+                    <AdminStatusBadge status={shp.status} size="sm" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="font-bold text-sm text-[#1D1D1F]">{shp.namaPembeli}</p>
+                    <p className="text-xs text-[#6E6E73] flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#8E8E93]" />
+                      {shp.tujuanKota}
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-[#FBFBFD] border border-[#E8E8ED] flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-bold text-[#1D1D1F]">{shp.kurir}</span>
+                      <span className="text-[11px] text-[#6E6E73] ml-1.5 bg-[#F5F5F7] px-2 py-0.5 rounded-full">
+                        {shp.layanan}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono font-bold text-[#1D1D1F]">
+                        {shp.nomorResi}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyResi(shp.nomorResi, shp.id)}
+                        className="p-1 rounded text-[#6E6E73] hover:text-[#1D1D1F]"
+                      >
+                        {isCopied ? (
+                          <Check className="w-3.5 h-3.5 text-[#2E7D4F]" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile Actions */}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#E8E8ED]/70">
+                    <button
+                      type="button"
+                      onClick={() => openEditResiModal(shp)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] inline-flex items-center gap-1.5"
+                    >
+                      <Edit2 className="w-3 h-3 text-[#6E6E73]" />
+                      <span>Input / Ubah Resi</span>
+                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      {shp.status === 'Menunggu Kurir' && (
+                        <button
+                          type="button"
+                          onClick={() => handleStatusTransition(shp, 'Dalam Perjalanan')}
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700"
+                        >
+                          Pickup Kurir
+                        </button>
+                      )}
+
+                      {shp.status === 'Dalam Perjalanan' && (
+                        <button
+                          type="button"
+                          onClick={() => handleStatusTransition(shp, 'Terkirim')}
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#2E7D4F] text-white"
+                        >
+                          Tandai Terkirim
+                        </button>
+                      )}
+
+                      {shp.status === 'Terkirim' && (
+                        <span className="text-xs font-bold text-[#2E7D4F] inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Selesai
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedShippingDetail(shp)}
+                        className="p-1.5 text-[#8E8E93] hover:text-[#1D1D1F] rounded-lg"
+                      >
+                        <Clock className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* ================= MODAL ATUR PENGIRIMAN ================= */}
+      {/* ================= MODAL ATUR / UBAH RESI PENGIRIMAN ================= */}
       {showConfigModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-[#E8E8ED] animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
@@ -456,9 +611,14 @@ export const AdminShippingPage: React.FC = () => {
                 <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
                   <Truck className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-bold text-[#1D1D1F]">
-                  Atur Pengiriman & Terbitkan Resi
-                </h3>
+                <div>
+                  <h3 className="text-base font-bold text-[#1D1D1F]">
+                    {editingShippingId ? 'Ubah Resi & Ekspedisi' : 'Input / Atur Resi Pengiriman'}
+                  </h3>
+                  <p className="text-[11px] text-[#6E6E73]">
+                    {editingShippingId ? 'Perbarui nomor resi atau kurir' : 'Terbitkan resi untuk pesanan yang telah dikemas'}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -478,8 +638,9 @@ export const AdminShippingPage: React.FC = () => {
                 <select
                   value={selectedOrderId}
                   onChange={(e) => setSelectedOrderId(e.target.value)}
+                  disabled={!!editingShippingId}
                   required
-                  className="w-full p-2.5 rounded-xl bg-[#F5F5F7] border-0 text-[#1D1D1F] focus:ring-2 focus:ring-[#2E7D4F]/30"
+                  className="w-full p-2.5 rounded-xl bg-[#F5F5F7] border-0 text-[#1D1D1F] focus:ring-2 focus:ring-[#2E7D4F]/30 disabled:opacity-70"
                 >
                   <option value="">-- Pilih pesanan pembeli --</option>
                   {readyOrders.map((ord) => (
@@ -524,16 +685,16 @@ export const AdminShippingPage: React.FC = () => {
                 </div>
               )}
 
-              {/* 3. Pilih Kurir & Layanan */}
+              {/* 3. Pilih Kurir (J&E, JNE, SiCepat, Anteraja, GoSend) & Layanan */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-[#1D1D1F] mb-1">
-                    Kurir Ekspedisi:
+                    Pilih Kurir Ekspedisi:
                   </label>
                   <select
                     value={selectedCourier}
                     onChange={(e) => setSelectedCourier(e.target.value as ShippingCourier)}
-                    className="w-full p-2.5 rounded-xl bg-[#F5F5F7] border-0 text-[#1D1D1F]"
+                    className="w-full p-2.5 rounded-xl bg-[#F5F5F7] border-0 text-[#1D1D1F] font-semibold focus:ring-2 focus:ring-[#2E7D4F]/30"
                   >
                     {COURIER_OPTIONS.map((c) => (
                       <option key={c} value={c}>
@@ -550,7 +711,7 @@ export const AdminShippingPage: React.FC = () => {
                   <select
                     value={selectedService}
                     onChange={(e) => setSelectedService(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-[#F5F5F7] border-0 text-[#1D1D1F]"
+                    className="w-full p-2.5 rounded-xl bg-[#F5F5F7] border-0 text-[#1D1D1F] focus:ring-2 focus:ring-[#2E7D4F]/30"
                   >
                     {SERVICE_OPTIONS.map((s) => (
                       <option key={s} value={s}>
@@ -561,7 +722,7 @@ export const AdminShippingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 4. Input Nomor Resi & Tombol Salin */}
+              {/* 4. Input Nomor Resi & Generate Otomatis */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block font-semibold text-[#1D1D1F]">
@@ -569,10 +730,13 @@ export const AdminShippingPage: React.FC = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setResiInput(`${selectedCourier.toUpperCase()}${Date.now().toString().slice(-9)}`)}
-                    className="text-[11px] text-[#2E7D4F] hover:underline cursor-pointer"
+                    onClick={() => {
+                      const prefix = selectedCourier.replace(/[^a-zA-Z]/g, '').toUpperCase();
+                      setResiInput(`${prefix}${Date.now().toString().slice(-9)}`);
+                    }}
+                    className="text-[11px] text-[#2E7D4F] hover:underline cursor-pointer font-semibold"
                   >
-                    Generate Resi Otomatis
+                    Generate Resi Demo
                   </button>
                 </div>
 
@@ -581,9 +745,9 @@ export const AdminShippingPage: React.FC = () => {
                     type="text"
                     value={resiInput}
                     onChange={(e) => setResiInput(e.target.value)}
-                    placeholder="Contoh: JNE88291028301"
+                    placeholder="Contoh: JE88291028301"
                     required
-                    className="flex-1 p-2.5 rounded-xl bg-[#F5F5F7] border-0 font-mono text-xs font-bold text-[#1D1D1F]"
+                    className="flex-1 p-2.5 rounded-xl bg-[#F5F5F7] border-0 font-mono text-xs font-bold text-[#1D1D1F] focus:ring-2 focus:ring-[#2E7D4F]/30"
                   />
                   <button
                     type="button"
@@ -611,7 +775,7 @@ export const AdminShippingPage: React.FC = () => {
                   disabled={!selectedOrderId || !resiInput}
                   className="px-5 py-2 rounded-full bg-[#2E7D4F] text-white hover:bg-[#256640] disabled:opacity-50 transition-colors shadow-xs cursor-pointer font-semibold"
                 >
-                  Simpan & Terbitkan Resi
+                  {editingShippingId ? 'Simpan Perubahan Resi' : 'Simpan & Terbitkan Resi'}
                 </button>
               </div>
             </form>
@@ -660,7 +824,7 @@ export const AdminShippingPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setSelectedShippingDetail(null)}
-              className="w-full py-2.5 rounded-full bg-[#1D1D1F] text-white text-xs font-semibold hover:bg-[#2E7D4F] transition-colors"
+              className="w-full py-2.5 rounded-full bg-[#1D1D1F] text-white text-xs font-semibold hover:bg-[#2E7D4F] transition-colors cursor-pointer"
             >
               Tutup Riwayat
             </button>

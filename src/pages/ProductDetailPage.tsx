@@ -12,6 +12,9 @@ import {
   X,
   MessageCircle,
   ArrowRight,
+  Minus,
+  Plus,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -19,9 +22,10 @@ import { CommentSection, CommentItem } from '../components/ui/CommentSection';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { addToCart, isLoggedIn } = useAuth();
+  const { addToCart, setBuyNow } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -50,12 +54,7 @@ export const ProductDetailPage: React.FC = () => {
       : 0;
 
   const handleAddToCart = () => {
-    if (!isLoggedIn) {
-      navigate('/masuk', { state: { returnUrl: location.pathname } });
-      return;
-    }
-
-    addToCart(product);
+    addToCart(product, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
 
@@ -68,6 +67,12 @@ export const ProductDetailPage: React.FC = () => {
       setShowToast(false);
     }, 4000);
   };
+
+  const handleBuyNow = () => {
+    setBuyNow(product, quantity);
+    navigate('/checkout?mode=langsung');
+  };
+
 
   useEffect(() => {
     return () => {
@@ -108,7 +113,7 @@ export const ProductDetailPage: React.FC = () => {
   ];
 
   return (
-    <div className="py-12 sm:py-16">
+    <div className="py-12 sm:py-16 pb-32 sm:pb-16">
       <Container>
         <div className="mb-6">
           <Link
@@ -204,6 +209,7 @@ export const ProductDetailPage: React.FC = () => {
                 </span>
                 <Link
                   to={`/cerita-bahan/${ingredient.id}`}
+                  state={{ from: 'produk', productId: product.id, productName: product.nama }}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-[#2E7D4F] hover:underline"
                 >
                   <span>Baca cerita lengkap</span>
@@ -241,34 +247,91 @@ export const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Action buttons & WhatsApp Inquiry Link */}
-            <div className="pt-2 space-y-3">
+            {/* Pemilih Jumlah & Action buttons */}
+            <div className="pt-2 space-y-4">
+              {/* Pemilih Jumlah (− 1 +), minimal 1 dan maksimal 10 */}
+              <div className="flex items-center gap-3.5">
+                <span className="text-xs font-semibold text-[#1D1D1F]">Jumlah:</span>
+                <div className="inline-flex items-center rounded-full border border-[#E8E8ED] bg-[#F5F5F7] p-1 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    disabled={quantity <= 1}
+                    className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1D1D1F] hover:bg-[#E8E8ED] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
+                    aria-label="Kurangi jumlah"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="w-10 text-center font-bold text-sm tabular-nums text-[#1D1D1F]">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+                    disabled={quantity >= 10}
+                    className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1D1D1F] hover:bg-[#E8E8ED] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
+                    aria-label="Tambah jumlah"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <span className="text-xs text-[#6E6E73]">
+                  Subtotal:{' '}
+                  <strong className="text-[#1D1D1F] tabular-nums font-bold">
+                    {new Intl.NumberFormat('id-ID', {
+                      style: 'currency',
+                      currency: 'IDR',
+                      maximumFractionDigits: 0,
+                    }).format(product.harga * quantity)}
+                  </strong>
+                </span>
+              </div>
+
+              {/* Dua tombol: Beli Sekarang (utama hijau) & Tambah ke Keranjang (outline) */}
               <div className="flex flex-wrap items-center gap-3">
                 <Button
-                  onClick={handleAddToCart}
+                  onClick={handleBuyNow}
                   variant="primary"
                   size="lg"
+                  className="bg-[#2E7D4F] hover:bg-[#256640] text-white font-semibold shadow-md"
+                  icon={<Zap className="w-4 h-4 fill-current" />}
+                >
+                  Beli Sekarang
+                </Button>
+                <Button
+                  onClick={handleAddToCart}
+                  variant="secondary"
+                  size="lg"
+                  className="border-2 border-[#2E7D4F] text-[#2E7D4F] bg-transparent hover:bg-[#EBF4EE] font-semibold"
                   icon={<ShoppingBag className="w-4 h-4" />}
                 >
                   {added ? 'Ditambahkan ke Keranjang!' : 'Tambah ke Keranjang'}
                 </Button>
-                <Button to={`/cerita-bahan/${product.ingredientId}`} variant="secondary" size="lg">
-                  Lihat Cerita {product.bahanUtama}
-                </Button>
               </div>
 
-              {/* Link teks kecil ke WhatsApp */}
-              <div className="flex items-center gap-2 pt-1">
+              {/* Tombol "Lihat Cerita ..." diubah jadi link teks di bawahnya */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 pt-1 text-xs">
+                <Link
+                  to={`/cerita-bahan/${product.ingredientId}`}
+                  state={{ from: 'produk', productId: product.id, productName: product.nama }}
+                  className="inline-flex items-center gap-1.5 font-semibold text-[#2E7D4F] hover:underline"
+                >
+                  <span>Lihat Cerita {product.bahanUtama}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+
+                <span className="hidden sm:inline text-[#D2D2D7]">·</span>
+
                 <a
                   href={`https://wa.me/6281234567890?text=${encodeURIComponent(
                     `Halo Ugly2Yummy, saya mau tanya tentang produk ${product.nama}.`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[#2E7D4F] hover:text-[#256640] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6E6E73] hover:text-[#2E7D4F] transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
-                  <span>Tanya soal produk ini</span>
+                  <span>Tanya soal produk ini via WhatsApp</span>
                 </a>
               </div>
             </div>
@@ -371,6 +434,68 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </Container>
 
+      {/* HP: Bar yang menempel di bawah layar berisi total harga dan kedua tombol */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E8E8ED] px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center justify-between gap-3 mb-2.5">
+          <div>
+            <span className="text-[10px] text-[#6E6E73] uppercase tracking-wider font-semibold block">
+              Total ({quantity} item)
+            </span>
+            <span className="text-base font-extrabold text-[#1D1D1F] tabular-nums">
+              {new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                maximumFractionDigits: 0,
+              }).format(product.harga * quantity)}
+            </span>
+          </div>
+
+          {/* Stepper jumlah mini untuk mobile */}
+          <div className="inline-flex items-center rounded-full border border-[#E8E8ED] bg-[#F5F5F7] p-0.5">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
+              className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#1D1D1F] disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer"
+              aria-label="Kurangi jumlah"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="w-7 text-center font-bold text-xs tabular-nums text-[#1D1D1F]">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+              disabled={quantity >= 10}
+              className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#1D1D1F] disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer"
+              aria-label="Tambah jumlah"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className="w-full py-2.5 px-3 rounded-full border-2 border-[#2E7D4F] text-[#2E7D4F] bg-white font-semibold text-xs active:bg-[#EBF4EE] flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>+ Keranjang</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleBuyNow}
+            className="w-full py-2.5 px-3 rounded-full bg-[#2E7D4F] text-white font-semibold text-xs active:bg-[#256640] shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span>Beli Sekarang</span>
+          </button>
+        </div>
+      </div>
+
       {/* Toast Notifikasi Tambah ke Keranjang (~4 Detik dengan Tombol X) */}
       <AnimatePresence>
         {showToast && (
@@ -379,7 +504,7 @@ export const ProductDetailPage: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="fixed bottom-5 right-4 left-4 sm:left-auto sm:right-6 sm:w-[420px] z-50 bg-white/95 backdrop-blur-md rounded-3xl border border-[#E8E8ED] shadow-[0_12px_36px_rgba(0,0,0,0.12)] p-4 space-y-3"
+            className="fixed bottom-24 sm:bottom-5 right-4 left-4 sm:left-auto sm:right-6 sm:w-[420px] z-50 bg-white/95 backdrop-blur-md rounded-3xl border border-[#E8E8ED] shadow-[0_12px_36px_rgba(0,0,0,0.12)] p-4 space-y-3"
           >
             {/* Header: Thumbnail + Teks + Tombol Tutup X */}
             <div className="flex items-center gap-3">

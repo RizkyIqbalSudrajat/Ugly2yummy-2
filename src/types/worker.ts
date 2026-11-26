@@ -80,8 +80,8 @@ export interface ProductInventory {
   terakhirDiperbarui: string;
 }
 
-export type TaskPriority = 'Tinggi' | 'Sedang' | 'Rendah';
-export type TaskStatus = 'Belum Dikerjakan' | 'Sedang Dikerjakan' | 'Selesai';
+export type TaskPriority = 'Tinggi' | 'Normal' | 'Rendah';
+export type TaskStatus = 'Belum Mulai' | 'Dalam Proses' | 'Selesai';
 
 export interface WorkerTask {
   id: string;

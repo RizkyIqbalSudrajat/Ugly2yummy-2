@@ -3,31 +3,61 @@ import { useNavigate } from 'react-router-dom';
 import { Container } from '../components/ui/Container';
 import { SmartImage } from '../components/ui/SmartImage';
 import { PRODUCTS, INGREDIENTS } from '../data/dummy';
-import { Search, Sparkles, ArrowUpRight } from 'lucide-react';
+import { Search, Sparkles, ArrowUpRight, SlidersHorizontal, X } from 'lucide-react';
+import { FilterPanel, CatalogFilterState } from '../components/ui/FilterPanel';
+
+type SortOption =
+  | 'Paling Sesuai'
+  | 'Harga Terendah'
+  | 'Harga Tertinggi'
+  | 'Rating Tertinggi'
+  | 'Paling Banyak Menyelamatkan';
 
 export const CatalogPage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
-  const [selectedKebutuhan, setSelectedKebutuhan] = useState<string>('Semua');
+
+  // Search query
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const categories = [
-    'Semua',
-    'Selai',
-    'Saus & Sambal',
-    'Camilan',
-    'Roti & Kue',
-    'Minuman',
-  ];
+  // Sorting
+  const [sortBy, setSortBy] = useState<SortOption>('Paling Sesuai');
 
-  const kebutuhanList = [
-    'Semua',
-    'Sarapan',
-    'Camilan Sehat',
-    'Masak Harian',
-    'Oleh-oleh',
-    'Hampers',
-  ];
+  // Filter Panel open state
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Grouped Filter State
+  const [filterState, setFilterState] = useState<CatalogFilterState>({
+    jenisProduk: [],
+    cocokUntuk: [],
+    bahanAsal: [],
+    hargaRange: '',
+  });
+
+  // Reset all filters
+  const handleResetFilters = () => {
+    setFilterState({
+      jenisProduk: [],
+      cocokUntuk: [],
+      bahanAsal: [],
+      hargaRange: '',
+    });
+  };
+
+  // Total active filter count for badge
+  const totalActiveFilterCount =
+    filterState.jenisProduk.length +
+    filterState.cocokUntuk.length +
+    filterState.bahanAsal.length +
+    (filterState.hargaRange ? 1 : 0);
+
+  // List of ingredients for filter options
+  const ingredientsOptions = useMemo(() => {
+    return INGREDIENTS.map((ing) => ({
+      id: ing.id,
+      nama: ing.nama,
+      emoji: ing.emoji,
+    }));
+  }, []);
 
   // Helper to format origin from ingredient
   const getProductOrigin = (ingredientId: string, bahanUtama: string) => {
@@ -37,113 +67,295 @@ export const CatalogPage: React.FC = () => {
     return ing.asal.split(',')[0].trim();
   };
 
-  // Filtered products list (kategori, kebutuhan, dan search)
-  const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((product) => {
-      const matchCategory =
-        selectedCategory === 'Semua' || product.kategori === selectedCategory;
-      const matchKebutuhan =
-        selectedKebutuhan === 'Semua' ||
-        (product.kebutuhan && product.kebutuhan.includes(selectedKebutuhan));
-      const matchSearch =
-        searchQuery.trim() === '' ||
-        product.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.bahanUtama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.kategori.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (product.kebutuhan &&
-          product.kebutuhan.some((k) =>
-            k.toLowerCase().includes(searchQuery.toLowerCase())
-          ));
-      return matchCategory && matchKebutuhan && matchSearch;
+  // Filtered and Sorted Products
+  const filteredAndSortedProducts = useMemo(() => {
+    const list = PRODUCTS.filter((product) => {
+      // 1. Search filter
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        const matchName = product.nama.toLowerCase().includes(q);
+        const matchBahan = product.bahanUtama.toLowerCase().includes(q);
+        const matchKat = product.kategori.toLowerCase().includes(q);
+        const matchKebutuhan =
+          product.kebutuhan &&
+          product.kebutuhan.some((k) => k.toLowerCase().includes(q));
+        if (!matchName && !matchBahan && !matchKat && !matchKebutuhan) {
+          return false;
+        }
+      }
+
+      // 2. Jenis Produk (multiple check)
+      if (
+        filterState.jenisProduk.length > 0 &&
+        !filterState.jenisProduk.includes(product.kategori)
+      ) {
+        return false;
+      }
+
+      // 3. Cocok Untuk (multiple check)
+      if (filterState.cocokUntuk.length > 0) {
+        const matchesAnyKebutuhan =
+          product.kebutuhan &&
+          product.kebutuhan.some((k) => filterState.cocokUntuk.includes(k));
+        if (!matchesAnyKebutuhan) {
+          return false;
+        }
+      }
+
+      // 4. Bahan Asal (multiple check)
+      if (
+        filterState.bahanAsal.length > 0 &&
+        !filterState.bahanAsal.includes(product.ingredientId)
+      ) {
+        return false;
+      }
+
+      // 5. Kisaran Harga (single check)
+      if (filterState.hargaRange === '<25000' && product.harga >= 25000) {
+        return false;
+      }
+      if (
+        filterState.hargaRange === '25000-40000' &&
+        (product.harga < 25000 || product.harga > 40000)
+      ) {
+        return false;
+      }
+      if (filterState.hargaRange === '>40000' && product.harga <= 40000) {
+        return false;
+      }
+
+      return true;
     });
-  }, [selectedCategory, selectedKebutuhan, searchQuery]);
+
+    // Apply sorting
+    return list.sort((a, b) => {
+      if (sortBy === 'Harga Terendah') {
+        return a.harga - b.harga;
+      }
+      if (sortBy === 'Harga Tertinggi') {
+        return b.harga - a.harga;
+      }
+      if (sortBy === 'Rating Tertinggi') {
+        return b.rating - a.rating;
+      }
+      if (sortBy === 'Paling Banyak Menyelamatkan') {
+        return b.estimasiKgTerselamatkan - a.estimasiKgTerselamatkan;
+      }
+      return 0; // Paling Sesuai
+    });
+  }, [searchQuery, filterState, sortBy]);
 
   return (
     <div className="py-12 sm:py-20 md:py-24">
       <Container>
         {/* Header Section */}
-        <div className="max-w-3xl mb-12 sm:mb-16">
+        <div className="max-w-3xl mb-10 sm:mb-12">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F] block mb-2">
             Katalog Upcycled
           </span>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-[#1D1D1F]">
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-[#1D1D1F]">
             Produk
           </h1>
-          <p className="mt-3 text-base sm:text-lg text-[#6E6E73] leading-relaxed">
+          <p className="mt-3 text-sm sm:text-base text-[#6E6E73] leading-relaxed">
             Semua olahan lezat dari buah dan sayur unik yang diselamatkan dari petani lokal.
           </p>
         </div>
 
-        {/* Search Bar & Filter Chips Controls */}
-        <div className="space-y-5 mb-12 sm:mb-16">
-          {/* Search Bar */}
-          <div className="relative max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#6E6E73]">
-              <Search className="w-4 h-4" />
+        {/* =========================================================================
+            SATU BARIS TOOLBAR: Pencarian Lebar, Tombol Filter & Dropdown Urutkan
+            ========================================================================= */}
+        <div className="relative mb-5 z-30">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap">
+            {/* 1. Kolom Pencarian (Lebar di kiri) */}
+            <div className="relative flex-1 min-w-[200px] w-full sm:w-auto">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#6E6E73]">
+                <Search className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari selai, saus, keripik, atau bahan..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-full border border-[#E8E8ED] bg-white text-xs sm:text-sm text-[#1D1D1F] placeholder-[#6E6E73]/60 focus:border-[#2E7D4F] focus:ring-2 focus:ring-[#2E7D4F]/15 outline-none transition-all"
+              />
             </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari selai, saus, keripik, atau bahan..."
-              className="w-full pl-11 pr-4 py-3 rounded-full border border-[#E8E8ED] bg-white text-sm text-[#1D1D1F] placeholder-[#6E6E73]/60 focus:border-[#2E7D4F] focus:ring-2 focus:ring-[#2E7D4F]/15 outline-none transition-all shadow-none"
-            />
-          </div>
 
-          {/* Baris 1: Kategori Produk */}
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider block">
-              Kategori:
-            </span>
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer select-none ${
-                    selectedCategory === category
-                      ? 'bg-[#1D1D1F] text-white shadow-none'
-                      : 'bg-white text-[#6E6E73] border border-[#E8E8ED] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+            {/* 2. Tombol Filter dengan SlidersHorizontal & Badge Jumlah Filter */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                aria-expanded={isFilterOpen}
+                aria-controls="catalog-filter-panel"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer border ${
+                  isFilterOpen || totalActiveFilterCount > 0
+                    ? 'bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-xs'
+                    : 'bg-white text-[#1D1D1F] border-[#E8E8ED] hover:bg-[#F5F5F7]'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>Filter</span>
+                {totalActiveFilterCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-[#2E7D4F] text-white text-[11px] font-bold flex items-center justify-center">
+                    {totalActiveFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Panel Filter (Melayang di desktop, bottom sheet di HP) */}
+              <FilterPanel
+                isOpen={isFilterOpen}
+                onClose={() => setIsFilterOpen(false)}
+                filterState={filterState}
+                onFilterChange={setFilterState}
+                onReset={handleResetFilters}
+                matchedCount={filteredAndSortedProducts.length}
+                ingredientsList={ingredientsOptions}
+                panelId="catalog-filter-panel"
+              />
             </div>
-          </div>
 
-          {/* Baris 2: Filter Kebutuhan "Cocok untuk" */}
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider block">
-              Cocok untuk:
-            </span>
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {kebutuhanList.map((item) => {
-                const isActive = selectedKebutuhan === item;
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setSelectedKebutuhan(item)}
-                    className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer select-none ${
-                      isActive
-                        ? 'bg-[#2E7D4F] text-white shadow-none'
-                        : 'bg-white text-[#6E6E73] border border-[#E8E8ED] hover:text-[#1D1D1F] hover:bg-[#F5F5F7]'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
+            {/* 3. Dropdown Kecil "Urutkan" */}
+            <div className="relative shrink-0">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                aria-label="Urutkan produk"
+                className="px-3.5 py-2.5 rounded-full border border-[#E8E8ED] bg-white text-xs sm:text-sm font-medium text-[#1D1D1F] focus:border-[#2E7D4F] outline-none cursor-pointer hover:bg-[#F5F5F7] transition-colors"
+              >
+                <option value="Paling Sesuai">Urutkan: Paling Sesuai</option>
+                <option value="Harga Terendah">Harga Terendah</option>
+                <option value="Harga Tertinggi">Harga Tertinggi</option>
+                <option value="Rating Tertinggi">Rating Tertinggi</option>
+                <option value="Paling Banyak Menyelamatkan">Paling Banyak Menyelamatkan</option>
+              </select>
             </div>
           </div>
         </div>
 
+        {/* =========================================================================
+            CHIP FILTER AKTIF BERLABEL & LINK HAPUS SEMUA
+            ========================================================================= */}
+        {totalActiveFilterCount > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mb-4 text-xs">
+            {/* Chip Jenis Produk */}
+            {filterState.jenisProduk.map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[#1D1D1F] font-medium"
+              >
+                <span>Jenis: {item}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilterState({
+                      ...filterState,
+                      jenisProduk: filterState.jenisProduk.filter((j) => j !== item),
+                    })
+                  }
+                  className="text-[#8E8E93] hover:text-[#1D1D1F] cursor-pointer"
+                  title={`Hapus filter ${item}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip Cocok Untuk */}
+            {filterState.cocokUntuk.map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[#1D1D1F] font-medium"
+              >
+                <span>Cocok: {item}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilterState({
+                      ...filterState,
+                      cocokUntuk: filterState.cocokUntuk.filter((c) => c !== item),
+                    })
+                  }
+                  className="text-[#8E8E93] hover:text-[#1D1D1F] cursor-pointer"
+                  title={`Hapus filter ${item}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip Bahan Asal */}
+            {filterState.bahanAsal.map((ingId) => {
+              const ing = INGREDIENTS.find((i) => i.id === ingId);
+              return (
+                <span
+                  key={ingId}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[#1D1D1F] font-medium"
+                >
+                  <span>
+                    Bahan: {ing?.emoji} {ing?.nama || ingId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilterState({
+                        ...filterState,
+                        bahanAsal: filterState.bahanAsal.filter((b) => b !== ingId),
+                      })
+                    }
+                    className="text-[#8E8E93] hover:text-[#1D1D1F] cursor-pointer"
+                    title={`Hapus filter bahan`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              );
+            })}
+
+            {/* Chip Harga */}
+            {filterState.hargaRange && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[#1D1D1F] font-medium">
+                <span>
+                  Harga:{' '}
+                  {filterState.hargaRange === '<25000'
+                    ? 'Di bawah Rp25.000'
+                    : filterState.hargaRange === '25000-40000'
+                    ? 'Rp25.000–Rp40.000'
+                    : 'Di atas Rp40.000'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFilterState({ ...filterState, hargaRange: '' })}
+                  className="text-[#8E8E93] hover:text-[#1D1D1F] cursor-pointer"
+                  title="Hapus filter harga"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Link Hapus Semua */}
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-xs font-semibold text-[#2E7D4F] hover:underline cursor-pointer ml-1"
+            >
+              Hapus semua
+            </button>
+          </div>
+        )}
+
+        {/* Teks Ringkasan "Menampilkan X dari Y produk" */}
+        <div className="flex items-center justify-between text-xs text-[#6E6E73] mb-8 pb-3 border-b border-[#E8E8ED]">
+          <span>
+            Menampilkan {filteredAndSortedProducts.length} dari {PRODUCTS.length} produk
+          </span>
+        </div>
+
         {/* Grid Produk: 3 kolom di desktop, 2 di tablet, 1 di HP */}
-        {filteredProducts.length > 0 ? (
+        {filteredAndSortedProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
-            {filteredProducts.map((product) => {
+            {filteredAndSortedProducts.map((product) => {
               const origin = getProductOrigin(product.ingredientId, product.bahanUtama);
               const formattedPrice = new Intl.NumberFormat('id-ID', {
                 style: 'currency',
@@ -217,20 +429,19 @@ export const CatalogPage: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="p-12 text-center bg-white rounded-3xl border border-[#E8E8ED]">
-            <p className="text-base font-semibold text-[#1D1D1F]">
-              Tidak ada produk yang cocok dengan pencarian Anda.
+          <div className="p-12 text-center bg-white rounded-3xl border border-[#E8E8ED] space-y-3">
+            <p className="text-base font-bold text-[#1D1D1F]">
+              Tidak ada produk yang cocok dengan kombinasi filter Anda.
             </p>
-            <p className="text-xs text-[#6E6E73] mt-1">
-              Coba kata kunci lain atau pilih kategori &quot;Semua&quot;.
+            <p className="text-xs text-[#6E6E73] max-w-sm mx-auto">
+              Coba atur ulang beberapa pilihan filter atau hapus kata kunci pencarian untuk melihat produk lainnya.
             </p>
             <button
               onClick={() => {
-                setSelectedCategory('Semua');
-                setSelectedKebutuhan('Semua');
+                handleResetFilters();
                 setSearchQuery('');
               }}
-              className="mt-4 px-4 py-2 rounded-full bg-[#F5F5F7] text-xs font-semibold text-[#1D1D1F] hover:bg-[#E8E8ED] transition-colors cursor-pointer"
+              className="mt-2 px-5 py-2.5 rounded-full bg-[#1D1D1F] hover:bg-[#2E7D4F] text-xs font-semibold text-white transition-colors cursor-pointer"
             >
               Reset Semua Filter
             </button>

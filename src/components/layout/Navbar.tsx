@@ -17,14 +17,29 @@ import {
 import { Button } from '../ui/Button';
 
 export const Navbar: React.FC = () => {
-  const { isLoggedIn, user, cartCount, logout } = useAuth();
+  const { isLoggedIn, user, cartCount, logout, isGuest } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [portalDropdownOpen, setPortalDropdownOpen] = useState(false);
+  const [guestToast, setGuestToast] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const portalDropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Deteksi pesan toast belanja tamu dari navigasi
+  useEffect(() => {
+    const locState = location.state as { guestToast?: string | boolean } | null;
+    if (locState?.guestToast) {
+      setGuestToast(
+        typeof locState.guestToast === 'string'
+          ? locState.guestToast
+          : 'Kamu belanja sebagai tamu. Data pengiriman diisi saat checkout.'
+      );
+      const timer = setTimeout(() => setGuestToast(null), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
 
   // Deteksi posisi scroll di landing page untuk hero transparan
   const isLandingPage = location.pathname === '/';
@@ -341,9 +356,23 @@ export const Navbar: React.FC = () => {
               )}
             </div>
           ) : (
-            <Button to="/masuk" variant="primary" size="sm">
-              Masuk
-            </Button>
+            <div className="flex items-center gap-2">
+              {isGuest && (
+                <span
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border transition-colors ${
+                    isTransparentHero
+                      ? 'bg-white/20 text-white border-white/30 backdrop-blur-md'
+                      : 'bg-[#EBF4EE] text-[#2E7D4F] border-[#2E7D4F]/30'
+                  }`}
+                  title="Belanja sebagai Tamu"
+                >
+                  Tamu
+                </span>
+              )}
+              <Button to="/masuk" variant="primary" size="sm">
+                Masuk
+              </Button>
+            </div>
           )}
         </div>
 
@@ -508,11 +537,39 @@ export const Navbar: React.FC = () => {
                 Keluar dari Akun Demo
               </button>
             ) : (
-              <Button to="/masuk" variant="primary" fullWidth size="md">
-                Masuk (Demo)
-              </Button>
+              <div className="space-y-2">
+                {isGuest && (
+                  <div className="flex items-center justify-between px-1 text-xs">
+                    <span className="text-[#6E6E73]">Status:</span>
+                    <span className="text-[11px] font-bold text-[#2E7D4F] bg-[#EBF4EE] border border-[#2E7D4F]/30 px-2.5 py-0.5 rounded-full">
+                      Tamu
+                    </span>
+                  </div>
+                )}
+                <Button to="/masuk" variant="primary" fullWidth size="md">
+                  Masuk (Demo)
+                </Button>
+              </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Toast Belanja Sebagai Tamu */}
+      {guestToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92%] sm:w-auto bg-white/95 backdrop-blur-md rounded-2xl border border-[#2E7D4F]/30 shadow-[0_12px_36px_rgba(0,0,0,0.14)] px-4 py-3 text-xs text-[#1D1D1F] flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-[#2E7D4F] shrink-0" />
+            <span className="font-semibold text-[#1E432D]">{guestToast}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setGuestToast(null)}
+            className="p-1 text-[#6E6E73] hover:text-[#1D1D1F] rounded-full hover:bg-[#F5F5F7] cursor-pointer shrink-0"
+            aria-label="Tutup notifikasi"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
     </header>

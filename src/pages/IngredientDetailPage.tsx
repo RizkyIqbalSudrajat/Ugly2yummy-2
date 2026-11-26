@@ -1,5 +1,6 @@
-import React from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { INGREDIENTS, PRODUCTS } from '../data/dummy';
 import { Container } from '../components/ui/Container';
 import { SmartImage } from '../components/ui/SmartImage';
@@ -18,23 +19,52 @@ import {
   XCircle,
   HeartHandshake,
   ChefHat,
+  ChevronDown,
 } from 'lucide-react';
 import { CommentSection, CommentItem } from '../components/ui/CommentSection';
 
 export const IngredientDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // State navigasi dari halaman sebelumnya (misal dari ProductDetailPage)
+  const navState = location.state as {
+    from?: string;
+    productId?: string;
+    productName?: string;
+  } | null;
+
+  const shouldReduceMotion = useReducedMotion();
 
   const ingredient =
     INGREDIENTS.find((i) => i.id === id) || INGREDIENTS[0];
 
-  // Find products made with this ingredient
+  // Cari produk olahan dari bahan ini
   const relatedProducts = PRODUCTS.filter((p) =>
     ingredient.produkOlahIds.includes(p.id)
   );
 
   const formattedSaved = ingredient.totalKgTerselamatkan.toLocaleString('id-ID');
 
+  // Navigasi Kembali Cerdas
+  const handleBack = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (navState?.from === 'produk' || location.key !== 'default') {
+      navigate(-1);
+    } else {
+      navigate('/cerita-bahan');
+    }
+  };
+
+  let backLabel = 'Kembali ke Semua Cerita Bahan';
+  if (navState?.from === 'produk' && navState.productName) {
+    backLabel = `Kembali ke ${navState.productName}`;
+  } else if (location.key !== 'default') {
+    backLabel = 'Kembali';
+  }
+
+  // 5 Tahap Proses Bertani
   const timelineSteps = [
     {
       no: '1',
@@ -68,6 +98,33 @@ export const IngredientDetailPage: React.FC = () => {
     },
   ];
 
+  // Accordion State: Default SEMUA TERTUTUP (false)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    proses: false,
+    petani: false,
+    cerita: false,
+    kutipan: false,
+  });
+
+  const toggleSection = (sectionKey: string) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }));
+  };
+
+  const isAllOpen = Object.values(openSections).every(Boolean);
+
+  const handleToggleAll = () => {
+    const nextState = !isAllOpen;
+    setOpenSections({
+      proses: nextState,
+      petani: nextState,
+      cerita: nextState,
+      kutipan: nextState,
+    });
+  };
+
   const ingredientComments: CommentItem[] = [
     {
       id: 'ing-c1',
@@ -95,26 +152,36 @@ export const IngredientDetailPage: React.FC = () => {
   ];
 
   return (
-    <article className="py-10 sm:py-16 md:py-20 space-y-16 sm:space-y-24">
+    <article className="py-10 sm:py-16 md:py-20 space-y-14 sm:space-y-20">
       {/* =========================================================================
           1. HERO FOTO LEBAR DENGAN JUDUL
           ========================================================================= */}
       <section>
         <Container>
-          {/* Back Navigation Link */}
+          {/* Tombol Navigasi Kembali Cerdas */}
           <div className="mb-6 sm:mb-8">
-            <Link
-              to="/cerita-bahan"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6E6E73] hover:text-[#2E7D4F] transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Kembali ke Semua Cerita Bahan</span>
-            </Link>
+            {navState?.from === 'produk' || location.key !== 'default' ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6E6E73] hover:text-[#2E7D4F] transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>{backLabel}</span>
+              </button>
+            ) : (
+              <Link
+                to="/cerita-bahan"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6E6E73] hover:text-[#2E7D4F] transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Kembali ke Semua Cerita Bahan</span>
+              </Link>
+            )}
           </div>
 
           {/* Hero Banner Container */}
           <div className="relative rounded-3xl sm:rounded-[36px] overflow-hidden bg-[#1D1D1F] border border-white/10 shadow-xs min-h-[380px] sm:min-h-[480px] lg:min-h-[540px] flex flex-col justify-end p-6 sm:p-12 lg:p-16">
-            {/* Background Image with Scrim */}
             <div className="absolute inset-0 z-0">
               <SmartImage
                 src={ingredient.gambar}
@@ -127,7 +194,6 @@ export const IngredientDetailPage: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/25" />
             </div>
 
-            {/* Hero Title & Location */}
             <div className="relative z-10 max-w-3xl space-y-3">
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-semibold border border-white/25">
                 <span className="text-sm">{ingredient.emoji}</span>
@@ -149,13 +215,11 @@ export const IngredientDetailPage: React.FC = () => {
 
       {/* =========================================================================
           2. BARIS FAKTA SINGKAT
-          Asal, Petani, Musim Panen, Total Terselamatkan
           ========================================================================= */}
       <section>
         <Container>
           <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-[#E8E8ED] p-6 sm:p-8 shadow-none">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5 md:divide-x md:divide-[#E8E8ED]">
-              {/* Asal */}
               <div className="md:first:pl-0 md:px-4 space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#6E6E73] flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-[#2E7D4F]" />
@@ -166,7 +230,6 @@ export const IngredientDetailPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Petani */}
               <div className="md:px-4 space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#6E6E73] flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-[#2E7D4F]" />
@@ -177,7 +240,6 @@ export const IngredientDetailPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Musim Panen */}
               <div className="md:px-4 space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#6E6E73] flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-[#2E7D4F]" />
@@ -188,7 +250,6 @@ export const IngredientDetailPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Total Terselamatkan */}
               <div className="md:px-4 space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#6E6E73] flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#2E7D4F]" />
@@ -204,198 +265,402 @@ export const IngredientDetailPage: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          3. TIMELINE 5 TAHAP PROSES: Ditanam -> Dipanen -> Ditolak -> Diselamatkan -> Diolah
-          (Desktop Horizontal, Mobile Vertikal)
+          KELOMPOK ACCORDION: KISAH LENGKAP BAHAN INI (BISA DIBUKA-TUTUP)
+          Menggabungkan:
+          1. Asal Bahan & Proses Bertani
+          2. Profil Petani Mitra
+          3. Cerita Perjalanan Bahan
+          4. Kutipan Langsung Petani
           ========================================================================= */}
       <section>
         <Container>
-          <div className="max-w-5xl mx-auto space-y-8">
-            <div className="text-center max-w-xl mx-auto space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F] block">
-                Perjalanan Dari Ladang Ke Meja
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
-                Asal Bahan & Proses Bertani
-              </h2>
-              <p className="text-xs sm:text-sm text-[#6E6E73]">
-                Setiap kilogram bahan melewati 5 tahap transparan sebelum tiba di dapur rumah Anda.
-              </p>
+          <div className="max-w-4xl mx-auto space-y-5">
+            {/* Header Accordion & Tombol Buka/Tutup Semua */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-[#E8E8ED]">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F] block mb-1">
+                  Eksplorasi Mendalam
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#1D1D1F]">
+                  Kisah Lengkap Bahan Ini
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleAll}
+                className="text-xs sm:text-sm font-semibold text-[#2E7D4F] hover:text-[#256640] hover:underline cursor-pointer self-start sm:self-auto"
+              >
+                {isAllOpen ? 'Tutup semua' : 'Buka semua'}
+              </button>
             </div>
 
-            {/* Desktop Horizontal (md:grid-cols-5) & Mobile Vertical (flex-col) */}
-            <div className="hidden md:grid md:grid-cols-5 gap-4 relative">
-              {/* Garis penghubung horizontal desktop */}
-              <div className="absolute top-8 left-8 right-8 h-0.5 bg-[#E8E8ED] -z-0" />
-
-              {timelineSteps.map((step, idx) => {
-                const IconComponent = step.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="relative z-10 flex flex-col items-center text-center p-4 bg-white rounded-2xl border border-[#E8E8ED] shadow-none hover:border-[#2E7D4F]/30 transition-all duration-300"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center mb-3.5 border-2 border-white shadow-xs">
-                      <IconComponent className="w-5 h-5 stroke-[1.8]" />
+            {/* List 4 Baris Accordion */}
+            <div className="space-y-3.5">
+              {/* 1. Asal Bahan & Proses Bertani */}
+              <div className="bg-white rounded-3xl border border-[#E8E8ED] overflow-hidden shadow-xs transition-colors hover:border-[#2E7D4F]/30">
+                <button
+                  type="button"
+                  aria-expanded={openSections.proses}
+                  aria-controls="accordion-content-proses"
+                  id="accordion-header-proses"
+                  onClick={() => toggleSection('proses')}
+                  className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2E7D4F]"
+                >
+                  <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center shrink-0">
+                      <Sprout className="w-5 h-5 stroke-[1.8]" />
                     </div>
-                    <span className="text-[10px] font-bold text-[#2E7D4F] uppercase tracking-wider mb-1">
-                      Tahap {step.no}
-                    </span>
-                    <h4 className="text-sm font-bold text-[#1D1D1F] mb-1.5">
-                      {step.title}
-                    </h4>
-                    <p className="text-xs text-[#6E6E73] leading-relaxed">
-                      {step.desc}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Mobile Vertical Timeline */}
-            <div className="md:hidden space-y-4 relative pl-4 border-l-2 border-[#2E7D4F]/30 ml-3">
-              {timelineSteps.map((step, idx) => {
-                const IconComponent = step.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="relative bg-white rounded-2xl border border-[#E8E8ED] p-4 shadow-none flex items-start gap-3.5"
-                  >
-                    {/* Dot on line */}
-                    <div className="absolute -left-[23px] top-5 w-3 h-3 rounded-full bg-[#2E7D4F] border-2 border-white" />
-
-                    <div className="w-10 h-10 rounded-xl bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center shrink-0">
-                      <IconComponent className="w-5 h-5 stroke-[1.8]" />
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[10px] font-bold text-[#2E7D4F] uppercase tracking-wider">
-                          Tahap {step.no}
-                        </span>
-                        <span className="text-xs font-bold text-[#1D1D1F]">
-                          {step.title}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#6E6E73] leading-relaxed">
-                        {step.desc}
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-[#1D1D1F] tracking-tight">
+                        Asal Bahan &amp; Proses Bertani
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E6E73] mt-0.5 truncate sm:text-wrap">
+                        5 tahap transparan dari kebun sampai dapur olahan
                       </p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        </Container>
-      </section>
 
-      {/* =========================================================================
-          4. KARTU PROFIL PETANI MITRA
-          Foto, Nama, Daerah, Lama Bertani, Cara Tanam Singkat, & Kutipan
-          ========================================================================= */}
-      {ingredient.profilPetani && (
-        <section>
-          <Container size="narrow">
-            <div className="max-w-3xl mx-auto bg-white rounded-3xl border border-[#E8E8ED] p-7 sm:p-10 shadow-none">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-[#F5F5F7] shrink-0 border-2 border-[#2E7D4F]/20 shadow-xs">
-                  <img
-                    src={ingredient.profilPetani.fotoUrl}
-                    alt={ingredient.profilPetani.nama}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                  <div className="shrink-0 text-[#8E8E93] ml-2">
+                    <ChevronDown
+                      className={`w-5 h-5 transition-transform duration-300 ${
+                        openSections.proses ? 'rotate-180 text-[#2E7D4F]' : ''
+                      }`}
+                    />
+                  </div>
+                </button>
 
-                <div className="space-y-4 flex-1 text-center sm:text-left">
-                  <div>
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1.5">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F]">
-                        Profil Petani Mitra
-                      </span>
-                      <span className="text-xs text-[#6E6E73]">·</span>
-                      <span className="text-xs font-semibold text-[#2E7D4F] bg-[#EBF4EE] px-2.5 py-0.5 rounded-full">
-                        {ingredient.profilPetani.lamaBertani}
-                      </span>
+                <AnimatePresence initial={false}>
+                  {openSections.proses && (
+                    <motion.div
+                      id="accordion-content-proses"
+                      role="region"
+                      aria-labelledby="accordion-header-proses"
+                      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-5 pb-6 sm:px-8 sm:pb-8 pt-2 border-t border-[#E8E8ED]/70 space-y-6">
+                        <div className="text-center max-w-xl mx-auto space-y-1.5 pt-2">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F] block">
+                            Perjalanan Dari Ladang Ke Meja
+                          </span>
+                          <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1D1D1F]">
+                            Alur 5 Tahap Pengolahan
+                          </h4>
+                          <p className="text-xs sm:text-sm text-[#6E6E73]">
+                            Setiap kilogram bahan melewati 5 tahap transparan sebelum tiba di dapur rumah Anda.
+                          </p>
+                        </div>
+
+                        {/* Desktop Horizontal */}
+                        <div className="hidden md:grid md:grid-cols-5 gap-4 relative pt-2">
+                          <div className="absolute top-10 left-8 right-8 h-0.5 bg-[#E8E8ED] -z-0" />
+                          {timelineSteps.map((step, idx) => {
+                            const IconComponent = step.icon;
+                            return (
+                              <div
+                                key={idx}
+                                className="relative z-10 flex flex-col items-center text-center p-4 bg-[#FBFBFD] rounded-2xl border border-[#E8E8ED] shadow-none hover:border-[#2E7D4F]/30 transition-all duration-300"
+                              >
+                                <div className="w-12 h-12 rounded-full bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center mb-3.5 border-2 border-white shadow-xs">
+                                  <IconComponent className="w-5 h-5 stroke-[1.8]" />
+                                </div>
+                                <span className="text-[10px] font-bold text-[#2E7D4F] uppercase tracking-wider mb-1">
+                                  Tahap {step.no}
+                                </span>
+                                <h5 className="text-sm font-bold text-[#1D1D1F] mb-1.5">
+                                  {step.title}
+                                </h5>
+                                <p className="text-xs text-[#6E6E73] leading-relaxed">
+                                  {step.desc}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Mobile Vertical */}
+                        <div className="md:hidden space-y-4 relative pl-4 border-l-2 border-[#2E7D4F]/30 ml-3 pt-2">
+                          {timelineSteps.map((step, idx) => {
+                            const IconComponent = step.icon;
+                            return (
+                              <div
+                                key={idx}
+                                className="relative bg-[#FBFBFD] rounded-2xl border border-[#E8E8ED] p-4 shadow-none flex items-start gap-3.5"
+                              >
+                                <div className="absolute -left-[23px] top-5 w-3 h-3 rounded-full bg-[#2E7D4F] border-2 border-white" />
+                                <div className="w-10 h-10 rounded-xl bg-[#EBF4EE] text-[#2E7D4F] flex items-center justify-center shrink-0">
+                                  <IconComponent className="w-5 h-5 stroke-[1.8]" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="text-[10px] font-bold text-[#2E7D4F] uppercase tracking-wider">
+                                      Tahap {step.no}
+                                    </span>
+                                    <span className="text-xs font-bold text-[#1D1D1F]">
+                                      {step.title}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-[#6E6E73] leading-relaxed">
+                                    {step.desc}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* 2. Profil Petani Mitra */}
+              {ingredient.profilPetani && (
+                <div className="bg-white rounded-3xl border border-[#E8E8ED] overflow-hidden shadow-xs transition-colors hover:border-[#2E7D4F]/30">
+                  <button
+                    type="button"
+                    aria-expanded={openSections.petani}
+                    aria-controls="accordion-content-petani"
+                    id="accordion-header-petani"
+                    onClick={() => toggleSection('petani')}
+                    className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2E7D4F]"
+                  >
+                    <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center shrink-0">
+                        <User className="w-5 h-5 stroke-[1.8]" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base sm:text-lg font-bold text-[#1D1D1F] tracking-tight">
+                          Profil Petani: {ingredient.profilPetani.nama}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[#6E6E73] mt-0.5 truncate sm:text-wrap">
+                          Kenalan dengan sosok petani yang merawat tanaman ini
+                        </p>
+                      </div>
                     </div>
 
-                    <h3 className="text-2xl font-bold text-[#1D1D1F]">
-                      {ingredient.profilPetani.nama}
-                    </h3>
-                    <p className="text-xs text-[#6E6E73] flex items-center justify-center sm:justify-start gap-1 mt-0.5">
-                      <MapPin className="w-3.5 h-3.5 text-[#2E7D4F]" />
-                      <span>{ingredient.profilPetani.daerah}</span>
-                    </p>
-                  </div>
+                    <div className="shrink-0 text-[#8E8E93] ml-2">
+                      <ChevronDown
+                        className={`w-5 h-5 transition-transform duration-300 ${
+                          openSections.petani ? 'rotate-180 text-[#2E7D4F]' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
 
-                  <div className="p-4 rounded-2xl bg-[#F5F5F7] border border-[#E8E8ED] text-xs text-[#1D1D1F] text-left">
-                    <span className="font-semibold block text-[#2E7D4F] mb-1">
-                      Cara Tanam & Perawatan:
-                    </span>
-                    <p className="text-[#6E6E73] leading-relaxed">
-                      {ingredient.profilPetani.caraTanam}
-                    </p>
-                  </div>
+                  <AnimatePresence initial={false}>
+                    {openSections.petani && (
+                      <motion.div
+                        id="accordion-content-petani"
+                        role="region"
+                        aria-labelledby="accordion-header-petani"
+                        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                        transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-5 pb-6 sm:px-8 sm:pb-8 pt-2 border-t border-[#E8E8ED]/70">
+                          <div className="max-w-3xl mx-auto bg-[#FBFBFD] rounded-2xl border border-[#E8E8ED] p-6 sm:p-8">
+                            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+                              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-[#F5F5F7] shrink-0 border-2 border-[#2E7D4F]/20 shadow-xs">
+                                <img
+                                  src={ingredient.profilPetani.fotoUrl}
+                                  alt={ingredient.profilPetani.nama}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
 
-                  <blockquote className="font-['Instrument_Serif'] italic text-base sm:text-lg text-[#1D1D1F] leading-snug pt-1 border-l-2 border-[#2E7D4F]/40 pl-3.5 text-left">
-                    &ldquo;{ingredient.profilPetani.kutipan}&rdquo;
-                  </blockquote>
+                              <div className="space-y-4 flex-1 text-center sm:text-left">
+                                <div>
+                                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1.5">
+                                    <span className="text-xs font-semibold uppercase tracking-wider text-[#2E7D4F]">
+                                      Profil Petani Mitra
+                                    </span>
+                                    <span className="text-xs text-[#6E6E73]">·</span>
+                                    <span className="text-xs font-semibold text-[#2E7D4F] bg-[#EBF4EE] px-2.5 py-0.5 rounded-full">
+                                      {ingredient.profilPetani.lamaBertani}
+                                    </span>
+                                  </div>
+
+                                  <h4 className="text-2xl font-bold text-[#1D1D1F]">
+                                    {ingredient.profilPetani.nama}
+                                  </h4>
+                                  <p className="text-xs text-[#6E6E73] flex items-center justify-center sm:justify-start gap-1 mt-0.5">
+                                    <MapPin className="w-3.5 h-3.5 text-[#2E7D4F]" />
+                                    <span>{ingredient.profilPetani.daerah}</span>
+                                  </p>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-white border border-[#E8E8ED] text-xs text-[#1D1D1F] text-left">
+                                  <span className="font-semibold block text-[#2E7D4F] mb-1">
+                                    Cara Tanam &amp; Perawatan:
+                                  </span>
+                                  <p className="text-[#6E6E73] leading-relaxed">
+                                    {ingredient.profilPetani.caraTanam}
+                                  </p>
+                                </div>
+
+                                <blockquote className="font-['Instrument_Serif'] italic text-base sm:text-lg text-[#1D1D1F] leading-snug pt-1 border-l-2 border-[#2E7D4F]/40 pl-3.5 text-left">
+                                  &ldquo;{ingredient.profilPetani.kutipan}&rdquo;
+                                </blockquote>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
+              )}
+
+              {/* 3. Cerita Naratif Perjalanan Bahan */}
+              <div className="bg-white rounded-3xl border border-[#E8E8ED] overflow-hidden shadow-xs transition-colors hover:border-[#2E7D4F]/30">
+                <button
+                  type="button"
+                  aria-expanded={openSections.cerita}
+                  aria-controls="accordion-content-cerita"
+                  id="accordion-header-cerita"
+                  onClick={() => toggleSection('cerita')}
+                  className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2E7D4F]"
+                >
+                  <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center shrink-0">
+                      <Sparkles className="w-5 h-5 stroke-[1.8]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-[#1D1D1F] tracking-tight">
+                        Kisah Lengkap Perjalanan {ingredient.nama}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E6E73] mt-0.5 truncate sm:text-wrap">
+                        Cerita lengkap di balik panen dan dedikasi rasa alami
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 text-[#8E8E93] ml-2">
+                    <ChevronDown
+                      className={`w-5 h-5 transition-transform duration-300 ${
+                        openSections.cerita ? 'rotate-180 text-[#2E7D4F]' : ''
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {openSections.cerita && (
+                    <motion.div
+                      id="accordion-content-cerita"
+                      role="region"
+                      aria-labelledby="accordion-header-cerita"
+                      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-5 pb-6 sm:px-8 sm:pb-8 pt-2 border-t border-[#E8E8ED]/70">
+                        <div className="max-w-2xl mx-auto space-y-5 text-[#1D1D1F] text-sm sm:text-base leading-[1.8] font-normal py-2">
+                          {ingredient.ceritaPanjang && ingredient.ceritaPanjang.length > 0 ? (
+                            ingredient.ceritaPanjang.map((paragraf, index) => (
+                              <p key={index} className="text-balance">
+                                {paragraf}
+                              </p>
+                            ))
+                          ) : (
+                            <>
+                              <p className="text-balance">{ingredient.ceritaSingkat}</p>
+                              <p className="text-balance">
+                                Di tangan para petani yang tekun, buah dan sayur ini dirawat dengan sepenuh hati
+                                tanpa memaksakan bentuk seragam pabrikan. Alam memiliki keindahannya sendiri yang
+                                selalu mengejutkan indra pengecap kita.
+                              </p>
+                              <p className="text-balance">
+                                Ketika pasar konvensional menutup pintu, Ugly2Yummy hadir merayakan setiap
+                                lekukan unik dan bercak kematangan, mengubahnya menjadi produk artisan yang bernilai
+                                tinggi.
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
-          </Container>
-        </section>
-      )}
 
-      {/* =========================================================================
-          5. CERITA 3–4 PARAGRAF DENGAN LEBAR TEKS YANG NYAMAN DIBACA
-          ========================================================================= */}
-      <section>
-        <Container size="narrow">
-          <div className="max-w-2xl mx-auto space-y-6 text-[#1D1D1F] text-base sm:text-lg leading-[1.8] font-normal">
-            {ingredient.ceritaPanjang && ingredient.ceritaPanjang.length > 0 ? (
-              ingredient.ceritaPanjang.map((paragraf, index) => (
-                <p key={index} className="text-balance">
-                  {paragraf}
-                </p>
-              ))
-            ) : (
-              <>
-                <p className="text-balance">{ingredient.ceritaSingkat}</p>
-                <p className="text-balance">
-                  Di tangan para petani yang tekun, buah dan sayur ini dirawat dengan sepenuh hati
-                  tanpa memaksakan bentuk seragam pabrikan. Alam memiliki keindahannya sendiri yang
-                  selalu mengejutkan indra pengecap kita.
-                </p>
-                <p className="text-balance">
-                  Ketika pasar konvensional menutup pintu, Ugly2Yummy hadir merayakan setiap
-                  lekukan unik dan bercak kematangan, mengubahnya menjadi produk artisan yang bernilai
-                  tinggi.
-                </p>
-              </>
-            )}
-          </div>
-        </Container>
-      </section>
+              {/* 4. Kutipan Besar Petani */}
+              <div className="bg-white rounded-3xl border border-[#E8E8ED] overflow-hidden shadow-xs transition-colors hover:border-[#2E7D4F]/30">
+                <button
+                  type="button"
+                  aria-expanded={openSections.kutipan}
+                  aria-controls="accordion-content-kutipan"
+                  id="accordion-header-kutipan"
+                  onClick={() => toggleSection('kutipan')}
+                  className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2E7D4F]"
+                >
+                  <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#EBF4EE] text-[#1E432D] flex items-center justify-center shrink-0">
+                      <Quote className="w-5 h-5 stroke-[1.8]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-[#1D1D1F] tracking-tight">
+                        Kutipan Langsung dari Petani Mitra
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#6E6E73] mt-0.5 truncate sm:text-wrap">
+                        Ungkapan tulus tentang jerih payah dan cita rasa murni
+                      </p>
+                    </div>
+                  </div>
 
-      {/* =========================================================================
-          6. KUTIPAN BESAR DARI PETANI
-          ========================================================================= */}
-      <section className="bg-[#F5F5F7] py-16 sm:py-20">
-        <Container size="narrow">
-          <div className="max-w-2xl mx-auto text-center space-y-6">
-            <Quote className="w-12 h-12 text-[#2E7D4F]/30 mx-auto stroke-[1.2]" />
-            <blockquote className="font-['Instrument_Serif'] italic text-2xl sm:text-3xl md:text-4xl text-[#1D1D1F] leading-snug">
-              &ldquo;
-              {ingredient.kutipanPetani?.teks ||
-                'Kami merawat hasil bumi dengan rasa cinta. Rasa manis dan aromanya tidak pernah berkurang hanya karena bentuknya tak biasa.'}
-              &rdquo;
-            </blockquote>
-            <div className="pt-2">
-              <p className="text-sm font-bold text-[#1D1D1F]">
-                {ingredient.kutipanPetani?.nama || ingredient.petani}
-              </p>
-              <p className="text-xs text-[#6E6E73] mt-0.5">
-                {ingredient.kutipanPetani?.peran || `Petani Mitra di ${ingredient.asal}`}
-              </p>
+                  <div className="shrink-0 text-[#8E8E93] ml-2">
+                    <ChevronDown
+                      className={`w-5 h-5 transition-transform duration-300 ${
+                        openSections.kutipan ? 'rotate-180 text-[#2E7D4F]' : ''
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {openSections.kutipan && (
+                    <motion.div
+                      id="accordion-content-kutipan"
+                      role="region"
+                      aria-labelledby="accordion-header-kutipan"
+                      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-5 pb-6 sm:px-8 sm:pb-8 pt-2 border-t border-[#E8E8ED]/70">
+                        <div className="max-w-2xl mx-auto text-center space-y-4 py-4 bg-[#FBFBFD] rounded-2xl border border-[#E8E8ED] p-6">
+                          <Quote className="w-10 h-10 text-[#2E7D4F]/30 mx-auto stroke-[1.2]" />
+                          <blockquote className="font-['Instrument_Serif'] italic text-xl sm:text-2xl md:text-3xl text-[#1D1D1F] leading-snug">
+                            &ldquo;
+                            {ingredient.kutipanPetani?.teks ||
+                              'Kami merawat hasil bumi dengan rasa cinta. Rasa manis dan aromanya tidak pernah berkurang hanya karena bentuknya tak biasa.'}
+                            &rdquo;
+                          </blockquote>
+                          <div className="pt-2">
+                            <p className="text-sm font-bold text-[#1D1D1F]">
+                              {ingredient.kutipanPetani?.nama || ingredient.petani}
+                            </p>
+                            <p className="text-xs text-[#6E6E73] mt-0.5">
+                              {ingredient.kutipanPetani?.peran || `Petani Mitra di ${ingredient.asal}`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </Container>
@@ -407,7 +672,6 @@ export const IngredientDetailPage: React.FC = () => {
       <section>
         <Container size="narrow">
           <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Kartu 1: Kenapa dianggap ugly? */}
             <div className="bg-white rounded-3xl border border-[#E8E8ED] p-7 sm:p-8 flex flex-col justify-between shadow-none">
               <div>
                 <div className="w-10 h-10 rounded-2xl bg-[#FEF3E8] text-[#C86218] flex items-center justify-center mb-5">
@@ -426,7 +690,6 @@ export const IngredientDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Kartu 2: Faktanya */}
             <div className="bg-[#EBF4EE] rounded-3xl border border-[#2E7D4F]/20 p-7 sm:p-8 flex flex-col justify-between shadow-none">
               <div>
                 <div className="w-10 h-10 rounded-2xl bg-white text-[#2E7D4F] flex items-center justify-center mb-5 shadow-xs">
@@ -441,7 +704,7 @@ export const IngredientDetailPage: React.FC = () => {
               </div>
 
               <div className="mt-6 pt-4 border-t border-[#2E7D4F]/20 text-xs text-[#2E7D4F] font-bold">
-                100% Nutrisi & Rasa Murni
+                100% Nutrisi &amp; Rasa Murni
               </div>
             </div>
           </div>
@@ -449,7 +712,7 @@ export const IngredientDetailPage: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          6. "DIOLAH MENJADI": KARTU PRODUK YANG MEMAKAI BAHAN INI
+          8. "DIOLAH MENJADI": KARTU PRODUK YANG MEMAKAI BAHAN INI
           ========================================================================= */}
       <section className="bg-[#F5F5F7] py-16 sm:py-24">
         <Container>
@@ -534,7 +797,7 @@ export const IngredientDetailPage: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          8. KOLOM KOMENTAR DI BAGIAN BAWAH HALAMAN
+          9. KOLOM KOMENTAR DI BAGIAN BAWAH HALAMAN
           ========================================================================= */}
       <section className="border-t border-[#E8E8ED] pt-16 sm:pt-20">
         <Container>

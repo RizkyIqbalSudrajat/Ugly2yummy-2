@@ -178,7 +178,7 @@ export const AdminProductionCalculationPage: React.FC = () => {
       prioritas: 'Tinggi',
       tenggat: '14 Okt 2026, 17:00 WIB',
       dari: 'Raka Pratama (Admin)',
-      status: 'Belum Dikerjakan',
+      status: 'Belum Mulai',
       pekerjaNama: 'Siti Rahma',
     });
 
